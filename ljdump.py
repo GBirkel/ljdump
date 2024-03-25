@@ -30,6 +30,9 @@ from getpass import getpass
 import urllib
 from xml.sax import saxutils
 from datetime import *
+import sqlite3
+from sqlite3 import Error
+from ljdumpsqlite import *
 
 
 MimeExtensions = {
@@ -99,7 +102,8 @@ def gettext(e):
         return ""
     return e[0].firstChild.nodeValue
 
-def ljdump(Server, Username, Password, Journal, verbose=True):
+
+def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=False, use_sqlite=False):
     m = re.search("(.*)/interface/xmlrpc", Server)
     if m:
         Server = m.group(1)
@@ -128,81 +132,44 @@ def ljdump(Server, Username, Password, Journal, verbose=True):
     newcomments = 0
     errors = 0
 
+    conn = None
+    cur = None
+
+    if use_sqlite:
+        # create a database connection
+        conn = connect_to_local_journal_db("%s/journal.db" % Journal, verbose)
+        if not conn:
+            os._exit(os.EX_IOERR)
+        create_tables_if_missing(conn, verbose)
+        cur = conn.cursor()
+
     lastsync = ""
     lastmaxid = 0
-    try:
-        f = open("%s/.last" % Journal, "r")
-        lastsync = f.readline()
-        if lastsync[-1] == '\n':
-            lastsync = lastsync[:len(lastsync)-1]
-        lastmaxid = f.readline()
-        if len(lastmaxid) > 0 and lastmaxid[-1] == '\n':
-            lastmaxid = lastmaxid[:len(lastmaxid)-1]
-        if lastmaxid == "":
-            lastmaxid = 0
-        else:
-            lastmaxid = int(lastmaxid)
-        f.close()
-    except:
-        pass
+
+    if use_sqlite:
+        (lastmaxid, lastsync) = get_status_or_defaults(cur, lastmaxid, lastsync)
+    else:
+        try:
+            f = open("%s/.last" % Journal, "r")
+            lastsync = f.readline()
+            if lastsync[-1] == '\n':
+                lastsync = lastsync[:len(lastsync)-1]
+            lastmaxid = f.readline()
+            if len(lastmaxid) > 0 and lastmaxid[-1] == '\n':
+                lastmaxid = lastmaxid[:len(lastmaxid)-1]
+            if lastmaxid == "":
+                lastmaxid = 0
+            else:
+                lastmaxid = int(lastmaxid)
+            f.close()
+        except:
+            pass
+
+    #
+    # Entries (events)
+    #
+
     origlastsync = lastsync
-
-    r = server.LJ.XMLRPC.login(authed({
-        'ver': 1,
-        'getpickws': 1,
-        'getpickwurls': 1,
-    }))
-    userpics = dict(zip(map(str, r['pickws']), r['pickwurls']))
-    if r['defaultpicurl']:
-        userpics['*'] = r['defaultpicurl']
-
-    while True:
-        r = server.LJ.XMLRPC.syncitems(authed({
-            'ver': 1,
-            # 'lastsync': lastsync, # this one is not helpful when you want update existing stuff
-            'usejournal': Journal,
-        }))
-        if len(r['syncitems']) == 0:
-            break
-        for item in r['syncitems']:
-            if item['item'][0] == 'L':
-                print "Fetching journal entry %s (%s)" % (item['item'], item['action'])
-                try:
-                    e = server.LJ.XMLRPC.getevents(authed({
-                        'ver': 1,
-                        'selecttype': "one",
-                        'itemid': item['item'][2:],
-                        'usejournal': Journal,
-                    }))
-                    if e['events']:
-                        ev = e['events'][0]
-                        newentries += 1
-
-                        # Process the event
-                        pprint.pprint(ev)
-                        ev['event'] = re.sub('http://(edu.|staff.|)mmcs.sfedu.ru/~ulysses',
-                                             'https://a-pelenitsyn.github.io/Files',
-                                             str(ev['event']))
-
-                        # Store locally
-                        writedump("%s/%s" % (Journal, item['item']), ev)
-
-                        # Write back the event to server
-                        d = datetime.strptime(ev['eventtime'], '%Y-%m-%d %H:%M:%S')
-                        ev1 = dict(lineendings="pc", year=d.year, mon=d.month, day=d.day,
-                                   hour=d.hour, min=d.minute, **ev)
-                        r1 = server.LJ.XMLRPC.editevent(authed(ev1))
-                    else:
-                        print "Unexpected empty item: %s" % item['item']
-                        errors += 1
-                except xmlrpclib.Fault, x:
-                    print "Error getting item: %s" % item['item']
-                    pprint.pprint(x)
-                    errors += 1
-            lastsync = item['time']
-            writelast(Journal, lastsync, lastmaxid)
-        print "Good now, bye!"
-        os._exit(os.EX_OK)
 
     # The following code doesn't work because the server rejects our repeated calls.
     # https://www.livejournal.com/doc/server/ljp.csp.xml-rpc.getevents.html
@@ -210,20 +177,79 @@ def ljdump(Server, Username, Password, Journal, verbose=True):
     # conjuntions [sic] with the syncitems protocol mode", but provides
     # no other explanation about how these two function calls should
     # interact. Therefore we just do the above slow one-at-a-time method.
-
-    #while True:
+    #
     #    r = server.LJ.XMLRPC.getevents(authed({
     #        'ver': 1,
     #        'selecttype': "syncitems",
     #        'lastsync': lastsync,
     #    }))
-    #    pprint.pprint(r)
-    #    if len(r['events']) == 0:
-    #        break
-    #    for item in r['events']:
-    #        writedump("%s/L-%d" % (Journal, item['itemid']), item)
-    #        newentries += 1
-    #        lastsync = item['eventtime']
+
+    r = server.LJ.XMLRPC.syncitems(authed({
+        'ver': 1,
+        'lastsync': lastsync, # this one is not helpful when you want update existing stuff
+        'usejournal': Journal,
+    }))
+
+    if verbose:
+        print("Sync items to handle: %s" % (len(r['syncitems'])))
+
+    for item in r['syncitems']:
+        if item['item'][0] == 'L':
+            if verbose:
+                print("Fetching journal entry %s (%s)" % (item['item'], item['action']))
+            try:
+                e = server.LJ.XMLRPC.getevents(authed({
+                    'ver': 1,
+                    'selecttype': "one",
+                    'itemid': item['item'][2:],
+                    'usejournal': Journal,
+                }))
+                if e['events']:
+                    ev = e['events'][0]
+                    newentries += 1
+
+                    # Process the event
+                    if verbose:
+                        pprint.pprint(ev)
+                    else:
+                        print("%s %s %s" % (item['item'], ev['eventtime'], ev.get('subject', "(No subject)")))
+
+                    # Wanna do a bulk replace of something in your entire journal? This is now.
+                    #ev['event'] = re.sub('http://(edu.|staff.|)mmcs.sfedu.ru/~ulysses',
+                    #                     'https://a-pelenitsyn.github.io/Files',
+                    #                     str(ev['event']))
+                    # Write modified event to server
+                    #d = datetime.strptime(ev['eventtime'], '%Y-%m-%d %H:%M:%S')
+                    #ev1 = dict(lineendings="pc", year=d.year, mon=d.month, day=d.day,
+                    #          hour=d.hour, min=d.minute, **ev)
+                    #r1 = server.LJ.XMLRPC.editevent(authed(ev1))
+
+                    if use_sqlite:
+                        insert_or_update_event(cur, verbose, ev)
+                    else:
+                        writedump("%s/%s" % (Journal, item['item']), ev)
+
+                    if stop_at_fifty and newentries > 49:
+                        break
+
+                else:
+                    print("Unexpected empty item: %s" % item['item'])
+                    errors += 1
+            except xmlrpclib.Fault as x:
+                print("Error getting item: %s" % item['item'])
+                pprint.pprint(x)
+                errors += 1
+
+        lastsync = item['time']
+    
+    if stop_at_fifty:
+        set_status(cur, lastmaxid, lastsync)
+        finish_with_database(conn, cur)
+        os._exit(os.EX_OK)
+    
+    #
+    # Comments
+    #
 
     if verbose:
         print("Fetching journal comments for: %s" % Journal)
@@ -246,17 +272,23 @@ def ljdump(Server, Username, Password, Journal, verbose=True):
     while True:
         try:
             try:
-                r = urllib2.urlopen(urllib2.Request(Server+"/export_comments.bml?get=comment_meta&startid=%d%s" % (maxid+1, authas), headers = {'Cookie': "ljsession="+ljsession}))
+                r = urllib2.urlopen(
+                        urllib2.Request(
+                            Server+"/export_comments.bml?get=comment_meta&startid=%d%s" % (maxid+1, authas),
+                            headers = {'Cookie': "ljsession="+ljsession}
+                       )
+                    )
                 meta = xml.dom.minidom.parse(r)
-            except Exception, x:
-                print "*** Error fetching comment meta, possibly not community maintainer?"
-                print "***", x
+            except Exception as x:
+                print("*** Error fetching comment meta, possibly not community maintainer?")
+                print("***", x)
                 break
         finally:
             try:
                 r.close()
             except AttributeError: # r is sometimes a dict for unknown reasons
                 pass
+
         for c in meta.getElementsByTagName("comment"):
             id = int(c.getAttribute("id"))
             metacache[id] = {
@@ -283,7 +315,12 @@ def ljdump(Server, Username, Password, Journal, verbose=True):
     while True:
         try:
             try:
-                r = urllib2.urlopen(urllib2.Request(Server+"/export_comments.bml?get=comment_body&startid=%d%s" % (maxid+1, authas), headers = {'Cookie': "ljsession="+ljsession}))
+                r = urllib2.urlopen(
+                    urllib2.Request(
+                        Server+"/export_comments.bml?get=comment_body&startid=%d%s" % (maxid+1, authas),
+                        headers = {'Cookie': "ljsession="+ljsession}
+                    )
+                )
                 meta = xml.dom.minidom.parse(r)
             except Exception as x:
                 print("*** Error fetching comment body, possibly not community maintainer?")
@@ -294,65 +331,124 @@ def ljdump(Server, Username, Password, Journal, verbose=True):
         for c in meta.getElementsByTagName("comment"):
             id = int(c.getAttribute("id"))
             jitemid = c.getAttribute("jitemid")
-            comment = {
-                'id': str(id),
-                'parentid': c.getAttribute("parentid"),
-                'subject': gettext(c.getElementsByTagName("subject")),
-                'date': gettext(c.getElementsByTagName("date")),
-                'body': gettext(c.getElementsByTagName("body")),
-                'state': metacache[id]['state'],
-            }
-            if usermap.has_key(c.getAttribute("posterid")):
-                comment["user"] = usermap[c.getAttribute("posterid")]
-            try:
-                entry = xml.dom.minidom.parse("%s/C-%s" % (Journal, jitemid))
-            except:
-                entry = xml.dom.minidom.getDOMImplementation().createDocument(None, "comments", None)
-            found = False
-            for d in entry.getElementsByTagName("comment"):
-                if int(d.getElementsByTagName("id")[0].firstChild.nodeValue) == id:
-                    found = True
-                    break
-            if found:
-                print "Warning: downloaded duplicate comment id %d in jitemid %s" % (id, jitemid)
+
+            if verbose:
+                test_xml = meta.toprettyxml()
+                print(test_xml)
+                #pprint.pprint(test_xml)
+                os._exit(os.EX_OK)
+
+            if use_sqlite:
+                db_comment = {
+                    'id': id,
+                    'entryid': int(jitemid),
+                    'date': gettext(c.getElementsByTagName("date")),
+                    'parentid': c.getAttribute("parentid"),
+                    'posterid': c.getAttribute("posterid"),
+                    'user': None,
+                    'subject': gettext(c.getElementsByTagName("subject")),
+                    'body': gettext(c.getElementsByTagName("body")),
+                    'state': metacache[id]['state']
+                }
+                if usermap.has_key(c.getAttribute("posterid")):
+                    db_comment["user"] = usermap[c.getAttribute("posterid")]
+
+                was_new = insert_or_update_comment(cur, verbose, db_comment)
+                if was_new:
+                    newcomments += 1
             else:
-                entry.documentElement.appendChild(createxml(entry, "comment", comment))
-                f = codecs.open("%s/C-%s" % (Journal, jitemid), "w", "UTF-8")
-                entry.writexml(f)
-                f.close()
-                newcomments += 1
+
+                comment = {
+                    'id': str(id),
+                    'parentid': c.getAttribute("parentid"),
+                    'subject': gettext(c.getElementsByTagName("subject")),
+                    'date': gettext(c.getElementsByTagName("date")),
+                    'body': gettext(c.getElementsByTagName("body")),
+                    'state': metacache[id]['state'],
+                }
+                if usermap.has_key(c.getAttribute("posterid")):
+                    comment["user"] = usermap[c.getAttribute("posterid")]
+
+                try:
+                    entry = xml.dom.minidom.parse("%s/C-%s" % (Journal, jitemid))
+                except:
+                    entry = xml.dom.minidom.getDOMImplementation().createDocument(None, "comments", None)
+                found = False
+                for d in entry.getElementsByTagName("comment"):
+                    if int(d.getElementsByTagName("id")[0].firstChild.nodeValue) == id:
+                        found = True
+                        break
+                if found:
+                    print("Warning: downloaded duplicate comment id %d in jitemid %s" % (id, jitemid))
+                else:
+                    entry.documentElement.appendChild(createxml(entry, "comment", comment))
+                    f = codecs.open("%s/C-%s" % (Journal, jitemid), "w", "UTF-8")
+                    entry.writexml(f)
+                    f.close()
+                    newcomments += 1
+
             if id > maxid:
                 maxid = id
         if maxid >= newmaxid:
             break
 
-    lastmaxid = maxid
+    #
+    # Userpics
+    #
 
-    writelast(Journal, lastsync, lastmaxid)
+    r = server.LJ.XMLRPC.login(authed({
+        'ver': 1,
+        'getpickws': 1,
+        'getpickwurls': 1,
+    }))
+
+    userpics = dict(zip(map(str, r['pickws']), r['pickwurls']))
+    if r['defaultpicurl']:
+        userpics['*'] = r['defaultpicurl']
 
     if Username == Journal:
+        try:
+            os.mkdir("%s/userpics" % (Username))
+        except OSError as e:
+            if e.errno == 17:   # Folder already exists
+                pass
         if verbose:
             print("Fetching userpics for: %s" % Username)
-        f = open("%s/userpics.xml" % Username, "w")
-        print >>f, """<?xml version="1.0"?>"""
-        print >>f, "<userpics>"
+        if not use_sqlite:
+            f = open("%s/userpics.xml" % Username, "w")
+            print >>f, """<?xml version="1.0"?>"""
+            print >>f, "<userpics>"
         for p in userpics:
-            print >>f, """<userpic keyword="%s" url="%s" />""" % (p, userpics[p])
             pic = urllib2.urlopen(userpics[p])
             ext = MimeExtensions.get(pic.info()["Content-Type"], "")
-            picfn = re.sub(r'[*?\\/:<>"|]', "_", p)
+            picfn = re.sub(r'[*?\\/:<> "|]', "_", p)
             try:
                 picfn = codecs.utf_8_decode(picfn)[0]
-                picf = open("%s/%s%s" % (Username, picfn, ext), "wb")
+                picf = open("%s/userpics/%s%s" % (Username, picfn, ext), "wb")
             except:
                 # for installations where the above utf_8_decode doesn't work
                 picfn = "".join([ord(x) < 128 and x or "_" for x in picfn])
-                picf = open("%s/%s%s" % (Username, picfn, ext), "wb")
+                picf = open("%s/userpics/%s%s" % (Username, picfn, ext), "wb")
             shutil.copyfileobj(pic, picf)
             pic.close()
             picf.close()
-        print >>f, "</userpics>"
-        f.close()
+            if use_sqlite:
+                insert_or_update_icon(cur, verbose,
+                    {'keywords': p,
+                     'filename': (picfn+ext),
+                     'url': userpics[p]})
+            else:
+                print >>f, """<userpic keyword="%s" url="%s" />""" % (p, userpics[p])
+        if not use_sqlite:
+            print >>f, "</userpics>"
+            f.close()
+
+    lastmaxid = maxid
+
+    if use_sqlite:
+        set_status(cur, lastmaxid, lastsync)
+    else:
+        writelast(Journal, lastsync, lastmaxid)
 
     if verbose or (newentries > 0 or newcomments > 0):
         if origlastsync:
@@ -360,12 +456,20 @@ def ljdump(Server, Username, Password, Journal, verbose=True):
         else:
             print("%d new entries, %d new comments" % (newentries, newcomments))
     if errors > 0:
-        print "%d errors" % errors
+        print("%d errors" % errors)
+
+    if use_sqlite:
+        finish_with_database(conn, cur)
+
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="Livejournal archive utility")
     args.add_argument("--quiet", "-q", action='store_false', dest='verbose',
                       help="reduce log output")
+    args.add_argument("--sql", "-s", action='store_true', dest='usesql',
+                      help="store everything (except icon images) in an sqlite database instead of files")
+    args.add_argument("--fifty", "-f", action='store_true', dest='fifty',
+                      help="stop after synchronizing 50 entries, and do not fetch anything else")
     args = args.parse_args()
     if os.access("ljdump.config", os.F_OK):
         config = xml.dom.minidom.parse("ljdump.config")
@@ -402,5 +506,5 @@ if __name__ == "__main__":
             journals = [username]
 
     for journal in journals:
-        ljdump(server, username, password, journal, args.verbose)
+        ljdump(server, username, password, journal, args.verbose, args.fifty, args.usesql)
 # vim:ts=4 et:	
