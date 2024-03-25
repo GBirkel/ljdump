@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 #
 # ljdump.py - livejournal archiver
-# Greg Hewgill <greg@hewgill.com> https://hewgill.com/
-# Version 1.5.1
+# Greg Hewgill et al <greg@hewgill.com> https://hewgill.com/
+# Version 1.6
 #
 # LICENSE
 #

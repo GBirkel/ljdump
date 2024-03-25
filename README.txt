@@ -41,6 +41,25 @@ The configuration settings are:
 This program may be run as often as needed to bring the backup copy up
 to date. Both new and updated items are downloaded.
 
+Command line options:
+
+  --quiet
+
+    Makes the script print far less status information to the console
+    as it runs.
+
+  --sql
+
+    Writes everything (entries, comments, userpic info) to a SQLite
+    database instead of to individual files.
+    Useful for people who know how to work with a database.
+    The output works with all standard SQLite tools.
+
+  --fifty
+
+    Only fetch 50 of the entries that are new since the last sync,
+    then stop.  Useful for testing the script output.
+
 The community https://ljdump.livejournal.com has been set up for questions
 or comments, though it has not seen much action lately.
 
