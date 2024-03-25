@@ -310,12 +310,35 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
 
     newmaxid = maxid
     maxid = lastmaxid
-    while True:
+
+    # Make a reduced array of comment ids, containing only the ids
+    # between the id of the comment we fetched in the last session,
+    # and the highest comment id in the set of new comments.
+    new_comment_ids = []
+    for commentid in metacache.keys():
+        if commentid > maxid and commentid <= newmaxid:
+            new_comment_ids.append(commentid)
+    # Now put them in order from lowest to highest, because we're going to
+    # fetch comments in pages and skip the ones already fetched, and the
+    # pages will be in ascending order as well.
+    sorted_new_comment_ids = sorted(new_comment_ids, key=lambda x: x, reverse=False)
+    # There can be gaps in the id sequence larger than the size of a page,
+    # which means fetching using a startid of "last id in the previous page" + 1
+    # can potentially return a blank page and make it look like the fetch is complete.
+    # Drawing from a sorted array of known-good ids (and skipping the ones we
+    # already fetched) avoids this problem.
+    comments_already_fetched = {}
+
+    for commentid in sorted_new_comment_ids:
+        if commentid in comments_already_fetched:
+            continue
         try:
+            if verbose:
+                print('Fetching comment bodies starting at %s' % (commentid))
             try:
                 r = urllib2.urlopen(
                     urllib2.Request(
-                        Server+"/export_comments.bml?get=comment_body&startid=%d%s" % (maxid+1, authas),
+                        Server+"/export_comments.bml?get=comment_body&startid=%d%s" % (commentid, authas),
                         headers = {'Cookie': "ljsession="+ljsession}
                     )
                 )
@@ -328,6 +351,8 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
             r.close()
         for c in meta.getElementsByTagName("comment"):
             id = int(c.getAttribute("id"))
+            if id in comments_already_fetched:
+                continue
             jitemid = c.getAttribute("jitemid")
 
             if use_sqlite:
@@ -373,16 +398,17 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
                 if found:
                     print("Warning: downloaded duplicate comment id %d in jitemid %s" % (id, jitemid))
                 else:
+                    print("Writing comment id %d from %s" % (id, comment['date']))
                     entry.documentElement.appendChild(createxml(entry, "comment", comment))
                     f = codecs.open("%s/C-%s" % (Journal, jitemid), "w", "UTF-8")
                     entry.writexml(f)
                     f.close()
                     newcomments += 1
 
+            comments_already_fetched[id] = True
+
             if id > maxid:
                 maxid = id
-        if maxid >= newmaxid:
-            break
 
     #
     # Userpics
