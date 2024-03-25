@@ -209,10 +209,6 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
                     newentries += 1
 
                     # Process the event
-                    if verbose:
-                        pprint.pprint(ev)
-                    else:
-                        print("%s %s %s" % (item['item'], ev['eventtime'], ev.get('subject', "(No subject)")))
 
                     # Wanna do a bulk replace of something in your entire journal? This is now.
                     #ev['event'] = re.sub('http://(edu.|staff.|)mmcs.sfedu.ru/~ulysses',
@@ -227,6 +223,8 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
                     if use_sqlite:
                         insert_or_update_event(cur, verbose, ev)
                     else:
+                        if verbose:
+                            print("%s %s %s" % (item['item'], ev['eventtime'], ev.get('subject', "(No subject)")))
                         writedump("%s/%s" % (Journal, item['item']), ev)
 
                     if stop_at_fifty and newentries > 49:
