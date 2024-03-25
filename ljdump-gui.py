@@ -46,7 +46,7 @@ def poll():
         cancel['state'] = NORMAL
 
 def do_ok(event = None):
-    print "ok"
+    print("ok")
     #root.withdraw()
     status['text'] = "Running..."
     ok['state'] = DISABLED
@@ -57,7 +57,7 @@ def do_ok(event = None):
     poll()
 
 def do_cancel(event = None):
-    print "cancel", event
+    print("cancel", event)
     root.destroy()
 
 root = Tk()

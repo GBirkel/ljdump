@@ -242,9 +242,9 @@ def main(argv):
                                                             "user=",
                                                             "limit=",
                                                             "insecure"])
-    except getopt.GetoptError, err:
+    except (getopt.GetoptError, err):
         # print help information and exit:
-        print str(err) # will print something like "option -a not recognized"
+        print(str(err)) # will print something like "option -a not recognized"
         usage()
         sys.exit(2)
 

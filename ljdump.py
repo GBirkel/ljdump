@@ -112,7 +112,7 @@ def ljdump(Server, Username, Password, Journal, verbose=True):
         print("Fetching journal entries for: %s" % Journal)
     try:
         os.mkdir(Journal)
-        print "Created subdirectory: %s" % Journal
+        print("Created subdirectory: %s" % Journal)
     except:
         pass
 
@@ -285,9 +285,9 @@ def ljdump(Server, Username, Password, Journal, verbose=True):
             try:
                 r = urllib2.urlopen(urllib2.Request(Server+"/export_comments.bml?get=comment_body&startid=%d%s" % (maxid+1, authas), headers = {'Cookie': "ljsession="+ljsession}))
                 meta = xml.dom.minidom.parse(r)
-            except Exception, x:
-                print "*** Error fetching comment body, possibly not community maintainer?"
-                print "***", x
+            except Exception as x:
+                print("*** Error fetching comment body, possibly not community maintainer?")
+                print("***", x)
                 break
         finally:
             r.close()
@@ -380,19 +380,19 @@ if __name__ == "__main__":
         if not journals:
             journals = [username]
     else:
-        print "ljdump - livejournal archiver"
+        print("ljdump - livejournal archiver")
         print
         default_server = "https://livejournal.com"
         server = raw_input("Alternative server to use (e.g. 'https://www.dreamwidth.org'), or hit return for '%s': " % default_server) or default_server
         print
-        print "Enter your Livejournal username and password."
+        print("Enter your Livejournal username and password.")
         print
         username = raw_input("Username: ")
         password = getpass("Password: ")
         print
-        print "You may back up either your own journal, or a community."
-        print "If you are a community maintainer, you can back up both entries and comments."
-        print "If you are not a maintainer, you can back up only entries."
+        print("You may back up either your own journal, or a community.")
+        print("If you are a community maintainer, you can back up both entries and comments.")
+        print("If you are not a maintainer, you can back up only entries.")
         print
         journal = raw_input("Journal to back up (or hit return to back up '%s'): " % username)
         print
