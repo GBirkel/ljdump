@@ -330,12 +330,6 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
             id = int(c.getAttribute("id"))
             jitemid = c.getAttribute("jitemid")
 
-            if verbose:
-                test_xml = meta.toprettyxml()
-                print(test_xml)
-                #pprint.pprint(test_xml)
-                os._exit(os.EX_OK)
-
             if use_sqlite:
                 db_comment = {
                     'id': id,
