@@ -12,6 +12,13 @@ Unreleased
 - Add --quiet option to suppress log messages
 - Allow config file to omit password, in which case ljdump will
   prompt for it
+- Adding a "--sql" option, which stores everything (entries,
+  comments, userpic metadata, sync status) in an sqlite database.
+  The only things not stored there are the userpic files,
+  e.g. good_day.png, cool_entry.gif.
+  The database can be manipulated with all the usual tools.
+  This is a bit more portable format for people with a lot of
+  entries and comments.
 
 Version 1.5.1 - 2010-12-29
 
