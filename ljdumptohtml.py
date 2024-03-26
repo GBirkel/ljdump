@@ -329,10 +329,14 @@ def ljdumptohtml(Username, journal_name, verbose=True):
             )
     write_html("%s/page-%s.html" % (journal_name, 1), page)
 
-    # Copy the defauly stylesheet into the journal folder
-    styles_source = "stylesheet.css"
-    styles_copy = "%s/stylesheet.css" % (journal_name)
-    shutil.copyfile(styles_source, styles_copy)
+    # Copy the default stylesheet into the journal folder
+    source = "stylesheet.css"
+    dest = "%s/stylesheet.css" % (journal_name)
+    shutil.copyfile(source, dest)
+    # Copy a generic user icon into the journal folder
+    source = "user.png"
+    dest = "%s/user.png" % (journal_name)
+    shutil.copyfile(source, dest)
 
 
 if __name__ == "__main__":
