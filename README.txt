@@ -48,12 +48,12 @@ Command line options:
     Makes the script print far less status information to the console
     as it runs.
 
-  --sql
+  --nosql
 
-    Writes everything (entries, comments, userpic info) to a SQLite
-    database instead of to individual files.
-    Useful for people who know how to work with a database.
-    The output works with all standard SQLite tools.
+    By defualt, this script writes everything (entries, comments, icon info)
+    to a SQLite database instead of to individual files.
+    This flag turns that functionality off, and reverts to the old method of
+    storing everything in individually numbered XML files.
 
   --fifty
 

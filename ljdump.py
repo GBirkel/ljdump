@@ -484,8 +484,8 @@ if __name__ == "__main__":
     args = argparse.ArgumentParser(description="Livejournal archive utility")
     args.add_argument("--quiet", "-q", action='store_false', dest='verbose',
                       help="reduce log output")
-    args.add_argument("--sql", "-s", action='store_true', dest='usesql',
-                      help="store everything (except icon images) in an sqlite database instead of files")
+    args.add_argument("--nosql", "-s", action='store_false', dest='usesql',
+                      help="don't use the sql database, instead use the old multiple-file method of exporting")
     args.add_argument("--fifty", "-f", action='store_true', dest='fifty',
                       help="stop after synchronizing 50 entries, and do not fetch anything else")
     args = args.parse_args()
@@ -507,7 +507,7 @@ if __name__ == "__main__":
         default_server = "https://livejournal.com"
         server = raw_input("Alternative server to use (e.g. 'https://www.dreamwidth.org'), or hit return for '%s': " % default_server) or default_server
         print
-        print("Enter your Livejournal username and password.")
+        print("Enter your Livejournal (or Dreamwidth, etc) username and password.")
         print
         username = raw_input("Username: ")
         password = getpass("Password: ")
