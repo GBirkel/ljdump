@@ -1070,4 +1070,62 @@ border: solid 1px #000000;
     padding: .5em;
     }
 
+/* More custom CSS that was inlined on the test page */
 
+h3.entry-title {
+    font-weight: bold;
+    font-style: normal;
+}
+
+div.entry-content {
+    margin-top: 0;
+    margin-bottom: 0.5em;
+}
+
+.entry .contents .userpic {
+    top: -2.6em;
+}
+
+h1#title {
+    font-weight: bold;
+    font-style: normal;
+}
+
+#header > .inner:first-child {
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+
+#header .inner h2#pagetitle {
+    display: none;
+}
+
+.multiple-columns #secondary {
+    margin-top: -2.7em;
+}
+
+.module-userprofile .module-header {
+    text-align: center;
+    font-weight: bold;
+    font-style: normal;
+}
+
+.module h2.module-header {
+    text-align: center;
+    font-weight: bold;
+    font-style: normal;
+}
+
+.module-content li.module-list-item {
+    font-size: 0.9em;
+}
+
+.entry a {
+    text-decoration: none;
+}
+
+.entry .lj_embedcontent-ratio {
+    padding: 0;
+    margin: 0;
+}
