@@ -1,6 +1,22 @@
 ChangeLog - ljdump
 
-Unreleased
+Version 1.6.1 - 2024-03-25
+
+- "--sql" is now the default (and replaced with "--nosql")
+- Downloads mood infotmation for the given user
+- Downloads tag statistics for the given user
+
+Version 1.6 - 2024-03-24
+
+- Adding a "--sql" option, which stores everything (entries,
+  comments, userpic metadata, sync status) in an sqlite database.
+  The only things not stored there are the userpic files,
+  e.g. good_day.png, cool_entry.gif.  Those are written as files.
+  The database can be manipulated with all the usual tools.
+  This is a bit more portable format for people with a lot of
+  entries and comments.
+
+Version 1.5.2 - 2020-01-01
 
 - Prompt for alternative server, defaulting to LJ
 - Use "clear" auth method, since Dreamwidth has dropped challenge
@@ -12,13 +28,6 @@ Unreleased
 - Add --quiet option to suppress log messages
 - Allow config file to omit password, in which case ljdump will
   prompt for it
-- Adding a "--sql" option, which stores everything (entries,
-  comments, userpic metadata, sync status) in an sqlite database.
-  The only things not stored there are the userpic files,
-  e.g. good_day.png, cool_entry.gif.
-  The database can be manipulated with all the usual tools.
-  This is a bit more portable format for people with a lot of
-  entries and comments.
 
 Version 1.5.1 - 2010-12-29
 

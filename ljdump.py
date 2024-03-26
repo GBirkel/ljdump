@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 #
 # ljdump.py - livejournal archiver
-# Greg Hewgill et al <greg@hewgill.com> https://hewgill.com/
-# Version 1.6
+# Greg Hewgill, Garrett Birkel, et al
+# Version 1.6.1
 #
 # LICENSE
 #
@@ -183,6 +183,13 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
     #        'selecttype': "syncitems",
     #        'lastsync': lastsync,
     #    }))
+
+    # For testing purposes:
+    #r = server.LJ.XMLRPC.getdaycounts(authed({
+    #    'ver': 1,
+    #}))
+    #pprint.pprint(r)
+    #os._exit(os.EX_OK)
 
     r = server.LJ.XMLRPC.syncitems(authed({
         'ver': 1,

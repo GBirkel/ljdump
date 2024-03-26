@@ -12,7 +12,7 @@ The simplest way to run this is to execute the ljdump.py script with Python. Dep
 
 You may optionally download entries from a different journal (a community) where you are a member. If you are a community maintainer, you can also download comments from the community.
 
-## Using the configuration file ##
+### Using the configuration file ###
 
 If you want to save your username and password so you don't have to type it every time you run ljdump, you can save it in the configuration file.
 
@@ -36,18 +36,18 @@ The configuration settings are:
 
   If this is not specified, the "username" journal is downloaded. If this is specified, then only the named journals will be downloaded.  This element may be specified more than once to download multiple journals.
 
-## Command line options ##
+### Command line options ###
 
   --quiet
 
-    Makes the script print far less status information to the console as it runs.
+Makes the script print far less status information to the console as it runs.
 
   --nosql
 
-    By defualt, this script writes everything (entries, comments, icon info) to a SQLite database instead of to individual files.  This flag turns that functionality off, and reverts to the old method of storing everything in individually numbered XML files.
+By defualt, this script writes everything (entries, comments, icon info) to a SQLite database instead of to individual files.  This flag turns that functionality off, and reverts to the old method of storing everything in individually numbered XML files.
 
   --fifty
 
-    Only fetch 50 of the entries that are new since the last sync, then stop.  Useful for testing the script output.
+Only fetch 50 of the entries that are new since the last sync, then stop.  Useful for testing the script output.
 
 A Livejournal [community](https://ljdump.livejournal.com) was set up for questions or comments, on the original version of this code, but it has not seen attention for years.
