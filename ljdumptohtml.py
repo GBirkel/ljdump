@@ -59,9 +59,28 @@ def create_template_page(title_text):
     return (page, inner_d)
 
 
-def create_history_page(Journal, group, page_number, comments_grouped_by_entry, all_icons_by_keyword):
-    page, content = create_template_page("%s entries page %s" % (Journal, page_number))
-    for entry in group:
+def create_history_page(journal_name, entries, comments_grouped_by_entry, all_icons_by_keyword, page_number, previous_page_entry_count=0, next_page_entry_count=0):
+    page, content = create_template_page("%s entries page %s" % (journal_name, page_number))
+
+    # Top navigation area (e.g. "previous" and "next" links)
+    topnav_div = ET.SubElement(content, 'div', attrib={'class': 'navigation topnav' })
+    topnav_inner = ET.SubElement(topnav_div, 'div', attrib={'class': 'inner' })
+    topnav_ul = ET.SubElement(topnav_inner, 'ul')
+    if previous_page_entry_count > 0:
+        topnav_li = ET.SubElement(topnav_ul, 'li', attrib={'class': 'page-back' })
+        topnav_a = ET.SubElement(topnav_li, 'a', attrib={'href': ("page-%s.html" % (page_number-1))})
+        topnav_a.text = ("Previous %s" % (previous_page_entry_count))
+
+    if previous_page_entry_count > 0 and next_page_entry_count > 0:
+        topnav_li = ET.SubElement(topnav_ul, 'li', attrib={'class': 'page-separator' })
+        topnav_li.text = " | "
+
+    if next_page_entry_count > 0:
+        topnav_li = ET.SubElement(topnav_ul, 'li', attrib={'class': 'page-forward' })
+        topnav_a = ET.SubElement(topnav_li, 'a', attrib={'href': ("page-%s.html" % (page_number+1))})
+        topnav_a.text = ("Next %s" % (next_page_entry_count))
+
+    for entry in entries:
         wrapper = ET.SubElement(content, 'div',
             attrib={'class': 'entry-wrapper entry-wrapper-odd security-public restrictions-none journal-type-P has-userpic has-subject',
                     'id': ("entry-wrapper-%s" % (entry['itemid'])) })
@@ -80,6 +99,8 @@ def create_history_page(Journal, group, page_number, comments_grouped_by_entry, 
 
         # Middle wrapper for entry
         entry_inner = ET.SubElement(entry_div, 'div', attrib={'class': 'inner'})
+
+        # Entry header area
         entry_header = ET.SubElement(entry_inner, 'div', attrib={'class': 'header'})
         entry_header_inner = ET.SubElement(entry_header, 'div', attrib={'class': 'inner'})
 
@@ -115,8 +136,71 @@ def create_history_page(Journal, group, page_number, comments_grouped_by_entry, 
                 attrib={'class': 'entry-content',
                         'id': "entry-content-insertion-point"})
 
-        comment_count = comments_grouped_by_entry[entry['itemid']]
+        # Entry footer area
+        entry_footer = ET.SubElement(entry_inner, 'div', attrib={'class': 'footer'})
+        entry_footer_inner = ET.SubElement(entry_footer, 'div', attrib={'class': 'inner'})
 
+        # Tags (if any)
+        taglist = entry['props_taglist']
+        if taglist is not None:
+            tags_div = ET.SubElement(entry_footer_inner, 'div', attrib={'class': 'tag'})
+            tags_span = ET.SubElement(tags_div, 'span', attrib={'class': 'tag-text'})
+            tags_span.text = "Tags:"
+            tags_ul = ET.SubElement(tags_div, 'ul')
+            tags_split = taglist.split(', ')
+            if len(tags_split) > 1:
+                for i in range(0, len(tags_split)-1):
+                    one_tag = tags_split[i]
+                    tag_li = ET.SubElement(tags_ul, 'li')
+                    tag_a = ET.SubElement(tag_li, 'a',
+                        attrib={'href': ("tags/%s.html" % one_tag),
+                                'rel': 'tag'})
+                    tag_a.text = one_tag
+                    tag_a.tail = ", "
+            one_tag = tags_split[-1]
+            tag_li = ET.SubElement(tags_ul, 'li')
+            tag_a = ET.SubElement(tag_li, 'a',
+                attrib={'href': ("tags/%s.html" % one_tag),
+                        'rel': 'tag'})
+            tag_a.text = one_tag
+
+        # Management links
+        management_ul = ET.SubElement(entry_footer_inner, 'ul', attrib={'class': 'entry-interaction-links text-links'})
+        # Permalink
+        permalink_li = ET.SubElement(management_ul, 'li', attrib={'class': 'entry-permalink first-item'})
+        permalink_a = ET.SubElement(permalink_li, 'a', attrib={'href': (entry['url'])})
+        permalink_a.text = "Original"
+        # Comments link
+        comments = comments_grouped_by_entry[entry['itemid']]
+        top_comments_count = 0
+        for c in comments:
+            if not c['parentid']:
+                top_comments_count += 1
+        if top_comments_count > 0:
+            comments_li = ET.SubElement(management_ul, 'li', attrib={'class': 'entry-permalink first-item'})
+            comments_a = ET.SubElement(comments_li, 'a', attrib={'href': ("entries/%s.html" % entry['itemid'])})
+            if top_comments_count > 1:
+                comments_a.text = ("%s comments" % top_comments_count)
+            else:
+                comments_a.text = "1 comment"
+
+    # Bottom navigation area (e.g. "previous" and "next" links)
+    bottomnav_div = ET.SubElement(content, 'div', attrib={'class': 'navigation bottomnav' })
+    bottomnav_inner = ET.SubElement(bottomnav_div, 'div', attrib={'class': 'inner' })
+    bottomnav_ul = ET.SubElement(bottomnav_inner, 'ul')
+    if previous_page_entry_count > 0:
+        bottomnav_li = ET.SubElement(bottomnav_ul, 'li', attrib={'class': 'page-back' })
+        bottomnav_a = ET.SubElement(bottomnav_li, 'a', attrib={'href': ("page-%s.html" % (page_number-1))})
+        bottomnav_a.text = ("Previous %s" % (previous_page_entry_count))
+
+    if previous_page_entry_count > 0 and next_page_entry_count > 0:
+        bottomnav_li = ET.SubElement(bottomnav_ul, 'li', attrib={'class': 'page-separator' })
+        bottomnav_li.text = " | "
+
+    if next_page_entry_count > 0:
+        bottomnav_li = ET.SubElement(bottomnav_ul, 'li', attrib={'class': 'page-forward' })
+        bottomnav_a = ET.SubElement(bottomnav_li, 'a', attrib={'href': ("page-%s.html" % (page_number+1))})
+        bottomnav_a.text = ("Next %s" % (next_page_entry_count))
 
     # We're going to be weird here, because journal entries often contain weird and
     # broken HTML.  We really can't rely on parsing a journal entry into XML and then
@@ -131,8 +215,8 @@ def create_history_page(Journal, group, page_number, comments_grouped_by_entry, 
     html_split_on_insertion_points = html_as_string.split('<div class="entry-content" id="entry-content-insertion-point"></div>')
 
     text_strings = []
-    for i in range(0, len(group)):
-        e = group[i]
+    for i in range(0, len(entries)):
+        e = entries[i]
         entry_body = e['event']
         entry_body = re.sub("\n", "<br />\n", entry_body)
         text_strings.append(html_split_on_insertion_points[i])
@@ -145,23 +229,19 @@ def create_history_page(Journal, group, page_number, comments_grouped_by_entry, 
     return u''.join(text_strings)
 
 
-def ljdumptohtml(Username, Journal, verbose=True):
+def ljdumptohtml(Username, journal_name, verbose=True):
     if verbose:
-        print("Starting conversion for: %s" % Journal)
+        print("Starting conversion for: %s" % journal_name)
 
     conn = None
     cur = None
 
     # create a database connection
-    conn = connect_to_local_journal_db("%s/journal.db" % Journal, verbose)
+    conn = connect_to_local_journal_db("%s/journal.db" % journal_name, verbose)
     if not conn:
-        print("Database could not be opened for journal %s" % Journal)
+        print("Database could not be opened for journal %s" % journal_name)
         os._exit(os.EX_IOERR)
     cur = conn.cursor()
-
-    styles_source = "stylesheet.css"
-    styles_copy = "%s/stylesheet.css" % (Journal)
-    shutil.copyfile(styles_source, styles_copy)
 
     all_entries = get_all_events(cur, verbose)
     all_comments = get_all_comments(cur, verbose)
@@ -213,8 +293,21 @@ def ljdumptohtml(Username, Journal, verbose=True):
 
     #pprint.pprint(all_icons_by_keyword)
 
-    page = create_history_page(Journal, groups_of_twenty[0], 1, comments_grouped_by_entry, all_icons_by_keyword)
-    write_html("%s/page%s.html" % (Journal, 1), page)
+    page = create_history_page(
+                journal_name=journal_name,
+                entries=groups_of_twenty[0],
+                comments_grouped_by_entry=comments_grouped_by_entry,
+                all_icons_by_keyword=all_icons_by_keyword,
+                page_number=1,
+                previous_page_entry_count=21,
+                next_page_entry_count=21
+            )
+    write_html("%s/page-%s.html" % (journal_name, 1), page)
+
+    # Copy the defauly stylesheet into the journal folder
+    styles_source = "stylesheet.css"
+    styles_copy = "%s/stylesheet.css" % (journal_name)
+    shutil.copyfile(styles_source, styles_copy)
 
 
 if __name__ == "__main__":
