@@ -116,8 +116,7 @@ def create_tables_if_missing(conn, verbose):
         CREATE TABLE IF NOT EXISTS status (
             lastsync TEXT,
             lastmaxid INTEGER
-        )
-        """)
+        )""")
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS entries (
@@ -143,8 +142,7 @@ def create_tables_if_missing(conn, verbose):
             props_taglist TEXT,
 
             raw_props TEXT NOT NULL
-        )
-        """)
+        )""")
 
     conn.execute("""
         CREATE INDEX IF NOT EXISTS entries_eventtime_unix
@@ -168,8 +166,7 @@ def create_tables_if_missing(conn, verbose):
             subject TEXT,
             body TEXT,
             state TEXT
-        )
-        """)
+        )""")
 
     conn.execute("""
         CREATE INDEX IF NOT EXISTS comments_date_unix
@@ -182,12 +179,33 @@ def create_tables_if_missing(conn, verbose):
         """)
 
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS moods (
+            id INTEGER PRIMARY KEY NOT NULL,
+            name TEXT,
+            parent INTEGER
+        )
+        """)
+
+    # There is a "groups" sructure inside each tag that appears to count uses of each
+    # tag in groups the user belongs to. We're not catching that here.
+    # https://github.com/dreamwidth/dreamwidth/blob/18169f4a4f909527b1acc5a7eb17f90f4a56068c/cgi-bin/LJ/Protocol.pm#L3847C21-L3847C26
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS tags (
+            name TEXT PRIMARY KEY NOT NULL,
+            display INTEGER,
+            security_private INTEGER,
+            security_protected INTEGER,
+            security_public INTEGER,
+            security_level TEXT,
+            uses INTEGER
+        )""")
+
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS icons (
             keywords TEXT PRIMARY KEY NOT NULL,
             filename TEXT,
             url TEXT
-        )
-        """)
+        )""")
 
 
 def get_status_or_defaults(cur, lastmaxid, lastsync):
@@ -493,6 +511,117 @@ def insert_or_update_comment(cur, verbose, comment):
         return False
 
 
+def get_all_moods(cur, verbose):
+    """ get all moods in the database
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :return: An array of mood objects
+    """
+    if verbose:
+        print('Fetching all moods from database')
+    cur.execute("SELECT id, name, parentid FROM moods")
+    rows = cur.fetchall()
+    moods = []
+    for row in rows:
+        mood = {
+            "id": row[0],
+            "name": row[1],
+            "parentid": row[2]
+        }
+        moods.append(icon)
+    return moods
+
+
+def insert_or_update_mood(cur, verbose, data):
+    """ insert a new mood or update any preexisting mood with a matching name
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :param data: mood data
+    """
+    cur.execute("SELECT id FROM moods WHERE id = :id", data)
+    row = cur.fetchone()
+    if not row:
+        if verbose:
+            print('Adding new mood with name: %s' % (data['name']))
+        cur.execute("""
+            INSERT INTO moods (
+                id, name, parent
+            ) VALUES (
+                :id, :name, :parent
+            )""", data)
+    else:
+        if verbose:
+            print('Updating existing mood with name: %s' % (data['name']))
+        cur.execute("""
+            UPDATE moods SET
+                name = :name,
+                parent = :parent
+            WHERE id = :id""", data)
+
+
+def get_all_tags(cur, verbose):
+    """ get all tags in the database
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :return: An array of tag objects
+    """
+    if verbose:
+        print('Fetching all tags from database')
+    cur.execute("""SELECT
+        name, display,
+        security_private, security_protected, security_public, security_level,
+        uses FROM tags""")
+    rows = cur.fetchall()
+    tags = []
+    for row in rows:
+        tag = {
+            "name": row[0],
+            "display": row[1],
+            "security_private": row[2],
+            "security_protected": row[3],
+            "security_public": row[4],
+            "security_level": row[5],
+            "uses": row[6]
+        }
+        tags.append(icon)
+    return tags
+
+
+def insert_or_update_tag(cur, verbose, data):
+    """ insert a new tag or update any preexisting tag with a matching name
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :param data: tag data
+    """
+    cur.execute("SELECT name FROM tags WHERE name = :name", data)
+    row = cur.fetchone()
+    if not row:
+        if verbose:
+            print('Adding new tag with name: %s' % (data['name']))
+        cur.execute("""
+            INSERT INTO tags (
+                name, display,
+                security_private, security_protected, security_public, security_level,
+                uses
+            ) VALUES (
+                :name, :display,
+                :security_private, :security_protected, :security_public, :security_level,
+                :uses
+            )""", data)
+    else:
+        if verbose:
+            print('Updating existing tag with name: %s' % (data['name']))
+        cur.execute("""
+            UPDATE tags SET
+                display = :display,
+                security_private = :security_private,
+                security_protected = :security_protected,
+                security_public = :security_public,
+                security_level = :security_level,
+                uses = :uses
+            WHERE name = :name""", data)
+
+
 def get_all_icons(cur, verbose):
     """ get all icons in the database
     :param cur: database cursor
@@ -505,7 +634,6 @@ def get_all_icons(cur, verbose):
     rows = cur.fetchall()
     icons = []
     for row in rows:
-        title = (row[1] or u'')
         icon = {
             "keywords": row[0],
             "filename": row[1],
@@ -521,7 +649,6 @@ def insert_or_update_icon(cur, verbose, data):
     :param verbose: whether we are verbose logging
     :param data: icon data
     """
-
     cur.execute("SELECT keywords FROM icons WHERE keywords = :keywords", data)
     row = cur.fetchone()
     if not row:

@@ -411,6 +411,41 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
                 maxid = id
 
     #
+    # Mood information
+    #
+
+    if use_sqlite:
+        r = server.LJ.XMLRPC.login(authed({
+            'ver': 1,
+            'getmoods': 1,
+        }))
+
+        for t in r['moods']:
+            insert_or_update_mood(cur, verbose,
+                {   'id': t['id'],
+                    'name': t['name'],
+                    'parent': t['parent']})
+
+    #
+    # Tag information
+    #
+
+    if use_sqlite:
+        r = server.LJ.XMLRPC.getusertags(authed({
+            'ver': 1,
+        }))
+
+        for t in r['tags']:
+            insert_or_update_tag(cur, verbose,
+                {   'name': t['name'],
+                    'display': t['display'],
+                    'security_private': t['security']['private'],
+                    'security_protected': t['security']['protected'],
+                    'security_public': t['security']['public'],
+                    'security_level': t['display'],
+                    'uses': t['uses']})
+
+    #
     # Userpics
     #
 
