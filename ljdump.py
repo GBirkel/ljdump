@@ -103,20 +103,20 @@ def gettext(e):
     return e[0].firstChild.nodeValue
 
 
-def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=False, use_sqlite=False):
+def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at_fifty=False, use_sqlite=False):
     m = re.search("(.*)/interface/xmlrpc", Server)
     if m:
         Server = m.group(1)
-    if Username != Journal:
-        authas = "&authas=%s" % Journal
+    if Username != journal_short_name:
+        authas = "&authas=%s" % journal_short_name
     else:
         authas = ""
 
     if verbose:
-        print("Fetching journal entries for: %s" % Journal)
+        print("Fetching journal entries for: %s" % journal_short_name)
     try:
-        os.mkdir(Journal)
-        print("Created subdirectory: %s" % Journal)
+        os.mkdir(journal_short_name)
+        print("Created subdirectory: %s" % journal_short_name)
     except:
         pass
 
@@ -137,7 +137,7 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
 
     if use_sqlite:
         # create a database connection
-        conn = connect_to_local_journal_db("%s/journal.db" % Journal, verbose)
+        conn = connect_to_local_journal_db("%s/journal.db" % journal_short_name, verbose)
         if not conn:
             os._exit(os.EX_IOERR)
         create_tables_if_missing(conn, verbose)
@@ -150,7 +150,7 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
         (lastmaxid, lastsync) = get_status_or_defaults(cur, lastmaxid, lastsync)
     else:
         try:
-            f = open("%s/.last" % Journal, "r")
+            f = open("%s/.last" % journal_short_name, "r")
             lastsync = f.readline()
             if lastsync[-1] == '\n':
                 lastsync = lastsync[:len(lastsync)-1]
@@ -187,7 +187,7 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
     r = server.LJ.XMLRPC.syncitems(authed({
         'ver': 1,
         'lastsync': lastsync, # this one is not helpful when you want update existing stuff
-        'usejournal': Journal,
+        'usejournal': journal_short_name,
     }))
 
     if verbose:
@@ -202,7 +202,7 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
                     'ver': 1,
                     'selecttype': "one",
                     'itemid': item['item'][2:],
-                    'usejournal': Journal,
+                    'usejournal': journal_short_name,
                 }))
                 if e['events']:
                     ev = e['events'][0]
@@ -225,7 +225,7 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
                     else:
                         if verbose:
                             print("%s %s %s" % (item['item'], ev['eventtime'], ev.get('subject', "(No subject)")))
-                        writedump("%s/%s" % (Journal, item['item']), ev)
+                        writedump("%s/%s" % (journal_short_name, item['item']), ev)
 
                     if stop_at_fifty and newentries > 49:
                         break
@@ -250,17 +250,17 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
     #
 
     if verbose:
-        print("Fetching journal comments for: %s" % Journal)
+        print("Fetching journal comments for: %s" % journal_short_name)
 
     try:
-        f = open("%s/comment.meta" % Journal)
+        f = open("%s/comment.meta" % journal_short_name)
         metacache = pickle.load(f)
         f.close()
     except:
         metacache = {}
 
     try:
-        f = open("%s/user.map" % Journal)
+        f = open("%s/user.map" % journal_short_name)
         usermap = pickle.load(f)
         f.close()
     except:
@@ -300,11 +300,11 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
         if maxid >= int(meta.getElementsByTagName("maxid")[0].firstChild.nodeValue):
             break
 
-    f = open("%s/comment.meta" % Journal, "w")
+    f = open("%s/comment.meta" % journal_short_name, "w")
     pickle.dump(metacache, f)
     f.close()
 
-    f = open("%s/user.map" % Journal, "w")
+    f = open("%s/user.map" % journal_short_name, "w")
     pickle.dump(usermap, f)
     f.close()
 
@@ -387,7 +387,7 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
                     comment["user"] = usermap[c.getAttribute("posterid")]
 
                 try:
-                    entry = xml.dom.minidom.parse("%s/C-%s" % (Journal, jitemid))
+                    entry = xml.dom.minidom.parse("%s/C-%s" % (journal_short_name, jitemid))
                 except:
                     entry = xml.dom.minidom.getDOMImplementation().createDocument(None, "comments", None)
                 found = False
@@ -400,7 +400,7 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
                 else:
                     print("Writing comment id %d from %s" % (id, comment['date']))
                     entry.documentElement.appendChild(createxml(entry, "comment", comment))
-                    f = codecs.open("%s/C-%s" % (Journal, jitemid), "w", "UTF-8")
+                    f = codecs.open("%s/C-%s" % (journal_short_name, jitemid), "w", "UTF-8")
                     entry.writexml(f)
                     f.close()
                     newcomments += 1
@@ -446,7 +446,7 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
                     'uses': t['uses']})
 
     #
-    # Userpics
+    # Userpics and user general info
     #
 
     r = server.LJ.XMLRPC.login(authed({
@@ -459,7 +459,14 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
     if r['defaultpicurl']:
         userpics['*'] = r['defaultpicurl']
 
-    if Username == Journal:
+    insert_or_update_user_info(cur, verbose,
+        {   'journal_short_name': journal_short_name,
+            'defaultpicurl': r['defaultpicurl'],
+            'fullname': r['fullname'],
+            'userid': r['userid']
+        })
+
+    if Username == journal_short_name:
         try:
             os.mkdir("%s/userpics" % (Username))
         except OSError as e:
@@ -501,7 +508,7 @@ def ljdump(Server, Username, Password, Journal, verbose=True, stop_at_fifty=Fals
     if use_sqlite:
         set_status(cur, lastmaxid, lastsync)
     else:
-        writelast(Journal, lastsync, lastmaxid)
+        writelast(journal_short_name, lastsync, lastmaxid)
 
     if verbose or (newentries > 0 or newcomments > 0):
         if origlastsync:

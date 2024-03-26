@@ -119,6 +119,14 @@ def create_tables_if_missing(conn, verbose):
         )""")
 
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS user (
+            journal_short_name TEXT,
+            defaultpicurl TEXT,
+            fullname TEXT,
+            userid INTEGER
+        )""")
+
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS entries (
             itemid INTEGER PRIMARY KEY NOT NULL,
             anum INTEGER,
@@ -222,6 +230,55 @@ def get_status_or_defaults(cur, lastmaxid, lastsync):
         return (lastmaxid, lastsync)
     else:
         return (row[0], row[1])
+
+
+def get_user_info(cur, verbose):
+    """ get the current user info record in the database
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :return: An object of user info or None if none exists yet
+    """
+    if verbose:
+        print('Fetching user info from database')
+    cur.execute("SELECT journal_short_name, defaultpicurl, fullname, userid FROM user LIMIT 1")
+    row = cur.fetchone()
+    if not row:
+        return None
+    else:
+        return {
+                "journal_short_name": row[0],
+                "defaultpicurl": row[1],
+                "fullname": row[2],
+                "userid": row[3]
+            }
+
+
+def insert_or_update_user_info(cur, verbose, data):
+    """ update or insert the single record in the user info table
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :param data: user info data
+    """
+    cur.execute("SELECT journal_short_name FROM user LIMIT 1")
+    row = cur.fetchone()
+    if not row:
+        if verbose:
+            print('Adding new user info record: %s' % (data['journal_short_name']))
+        cur.execute("""
+            INSERT INTO user (
+                journal_short_name, defaultpicurl, fullname, userid
+            ) VALUES (
+                :journal_short_name, :defaultpicurl, :fullname, :userid
+            )""", data)
+    else:
+        if verbose:
+            print('Updating existing user info record for: %s' % (data['journal_short_name']))
+        cur.execute("""
+            UPDATE user SET
+                journal_short_name = :journal_short_name,
+                defaultpicurl = :defaultpicurl,
+                fullname = :fullname,
+                userid = :userid""", data)
 
 
 def get_all_events(cur, verbose):
