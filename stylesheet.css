@@ -1,0 +1,1073 @@
+/* Cleaned CSS: */
+
+.ContextualPopup, .icon-browser {
+    background: #000000;
+    color: #f8f8f8;
+    }
+
+.ContextualPopup a, .icon-browser a { color: #ff70ff; }
+.ContextualPopup a:visited { color: #8000ff; }
+.ContextualPopup a:hover { color: #f000f0; }
+.ContextualPopup a:active { color: #ff70ff; }
+
+H1, H2, H3 {
+    margin: .25em 0;
+    padding: .25em 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+img {
+    border: none;
+}
+
+hr {
+    display: none;
+}
+.entry-content hr,
+.comment-content hr {
+    display: block;
+    margin: 1em 10%;
+}
+
+body {
+    font-family: Verdana; font-size: 0.9em;
+    padding: 0;
+    background: #000000;
+    color: #f8f8f8;
+background-color: #000000;
+border: solid 1px #000000;
+
+}
+
+#canvas {
+    margin-left: 0em;
+    margin-right: 0em;
+}
+
+a { color: #ff70ff;
+ }
+a:visited { color: #8000ff;
+ }
+a:hover { color: #f000f0;
+ }
+a:active { color: #ff70ff;
+ }
+
+q { font-style: italic; }
+
+/* #content layout */
+#content { float: none; }
+@media only screen and (min-width: 45em) {
+    .two-columns-left #content,
+    .three-columns-sides #content {
+        border-left: 15em solid transparent;
+    }
+    .two-columns-right #content,
+    .three-columns-sides #content {
+        border-right: 15em solid transparent;
+    }
+    .three-columns-left #content {
+        border-left: 30em solid transparent;
+    }
+    .three-columns-right #content {
+        border-right: 30em solid transparent;
+    }
+    .column-right #content {
+        min-width: 15em; /* prevents sidebar overlap of entry, when entry becomes narrower than sidebar */
+    }
+}
+
+#content-footer {
+    height: 0;
+    font-size: 0; /*to make IE happy*/
+    clear: both;
+}
+
+#header, #footer {
+    margin: 0;
+    clear: both;
+    padding: .5em;
+}
+
+#header {
+    background: #000000;
+    color: #4b4b4b;
+
+}
+
+h1#title {
+    font-family: Verdana, Verdana; 
+}
+
+h2#subtitle,
+h2#pagetitle {
+    font-family: Verdana, Verdana; 
+}
+
+#footer {
+    background: #000000;
+}
+
+#footer a { color: #ff70ff;
+ }
+#footer a:visited { color: #8000ff;
+ }
+#footer a:hover { color: #f000f0;
+ }
+#footer a:active { color: #ff70ff;
+ }
+
+#primary {
+    width:100%;
+    margin-right:-100%;
+    margin-left: 0;
+}
+
+#primary > .inner:first-child, #secondary > .inner:first-child, #tertiary > .inner:first-child {
+    padding: 1em;
+}
+
+/* modules layout */
+#primary { float: none; }
+#secondary, #tertiary { width: 100%; }
+
+@media only screen and (min-width: 45em) {
+    .multiple-columns #primary {
+        float: left;
+    }
+
+    .two-columns-left #secondary,
+    .three-columns-sides #secondary {
+        float: left;
+        width: 15em;
+        margin-left: -15em;
+    }
+    .two-columns-right #secondary {
+        float: right;
+        width: 15em;
+        margin-right: -15em;
+    }
+    .three-columns-left #secondary {
+        float: left;
+        width: 15em;
+        margin-left: -30em;
+    }
+    .three-columns-right #secondary {
+        float: right;
+        width: 15em;
+        margin-right: -15em;
+    }
+
+    .two-columns #tertiary {
+        clear: both;
+        width: auto;
+    }
+    .two-columns-left #tertiary { margin-left: -15em; }
+    .two-columns-right #tertiary { margin-right: -15em; }
+    .two-columns #tertiary .module {
+        float: left;
+        width: 15em;
+    }
+    .three-columns-left #tertiary {
+        float: left;
+        width: 15em;
+        margin-left: -15em;
+    }
+    .three-columns-right #tertiary {
+        float: right;
+        width: 15em;
+        margin-right: -30em;
+        margin-left: 15em; /* so that #tertiary won't overlay #secondary in IE7 */
+    }
+    .three-columns-sides #tertiary {
+        float: right;
+        width: 15em;
+        margin-right: -15em;
+    }
+}
+
+.navigation ul {
+    margin-left: 0;
+    padding-left: 0;
+}
+.navigation li {
+    display: inline;
+    padding: 0 .5em;
+}
+.noentries {
+    padding: 0 .5em;
+}
+
+/* entries */
+
+.entry {
+    background: #000000;
+    color: #f8f8f8;
+background-color: #000000;
+border: solid 1px #000000;
+
+}
+
+.entry .entry-title {
+    font-family: Verdana, Verdana; 
+}
+
+.entry .entry-title, .entry .entry-title a {
+    color: #ffffff;
+background-color: #000000;
+
+}
+
+.no-subject .entry .entry-title {
+    background: none;
+    border: none;
+}
+
+.entry .contents {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.entry a { color: #ff70ff;
+ }
+.entry a:visited { color: #8000ff;
+ }
+.entry a:hover { color: #f000f0;
+ }
+.entry a:active { color: #ff70ff;
+ }
+
+/* ensure comment content stretches out horizontally so it's readable */
+.comment-content:before {
+    content: "";
+    display: block;
+    overflow: hidden;
+    width: 10em;
+}
+.comment-content { border-top: 1px transparent solid; } /* for firefox */
+
+/* Don't add space after last element in an entry/comment. Avoids extra gaps */
+/* if there's paragraph tags (markdown) instead of text nodes (casual HTML). */
+.entry-content > :last-child,
+.comment-content > :last-child {
+    margin-bottom: 0;
+}
+
+/* To prevent overlapping when icon's on the left */
+/* and list is the first thing in content */
+.entry-content li,
+.comment-content li {
+    list-style-position: inside;
+    }
+
+.metadata ul {
+    display: inline;
+    list-style: none;
+    margin-left: .5em;
+    padding-left: 0;
+}
+.metadata li {
+    margin-bottom: .5em;
+}
+.metadata.top-metadata ul {
+    margin: 0;
+}
+.metadata.top-metadata {
+    margin-bottom: 1em;
+}
+
+.metadata-item, .poster-ip {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.tag ul {
+    display: inline;
+    margin-left: 0;
+    padding-left: 0;
+}
+
+.tag ul li {
+    display: inline;
+} /* same for month view */
+
+ul.entry-management-links {
+    margin-left: 0;
+    padding-left: 0;
+}
+ul.entry-management-links li {
+    display: inline;
+    padding: 0 .25em;
+}
+
+ul.entry-interaction-links {
+    margin-left: 0;
+    padding-left: 0;
+    text-align: right;
+}
+
+.entry-interaction-links a, .entry-management-links a { color: #ff70ff;
+ }
+.entry-interaction-links a:visited, .entry-management-links a:visited { color: #8000ff;
+ }
+.entry-interaction-links a:hover, .entry-management-links a:hover { color: #f000f0;
+ }
+.entry-interaction-links a:active, .entry-management-links a:active { color: #ff70ff;
+ }
+
+ul.entry-interaction-links li {
+    display: inline;
+    padding: 0 .25em;
+}
+
+/* comments */
+
+.comment-posted {font-weight:bold;}
+
+
+
+.comment-wrapper {
+    padding: .5em 0;
+    min-width: 15em;
+}
+
+.comment .admin-poster {
+    white-space: nowrap;
+}
+
+.comment .comment-title {
+    font-family: Verdana, Verdana; 
+    margin: 0;
+}
+
+.comment .comment-title, .comment .comment-title a {
+    color: #ffffff;
+background-color: #000000;
+
+}
+
+.no-subject .comment .comment-title {
+    background: none;
+    border: none;
+}
+
+.comment .contents {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+ul.comment-management-links {
+    margin-left: 0;
+    padding-left: 0;
+    text-align: right;
+}
+ul.comment-management-links li {
+    display: inline;
+    padding: 0 .25em;
+}
+
+ul.comment-interaction-links {
+    margin-left: 0;
+    padding-left: 0;
+}
+ul.comment-interaction-links li {
+    display: inline;
+    padding: 0 .25em;
+}
+
+textarea#commenttext {
+    width: 100%; /* fix for FF form width glitch */
+}
+
+/* archive */
+
+table.month {
+    margin: 0 auto;
+    border-collapse: collapse;
+}
+table.month td {
+    height: 3.25em;
+}
+table.month td,
+table.month th {
+    border: 1px solid; /* ? */
+    padding: 3px;
+}
+table.month td p {
+    margin: 0;
+    padding: 3px;
+}
+
+.month dl dt {
+    font-weight: bold;
+}
+.month dl .time {
+    padding-right: .5em;
+}
+.month dl h3 {
+    display: inline;
+    font-size: medium;
+}
+.page-month .month .entry-poster {
+    margin-right: .5em;
+}
+.month dl .tag ul {
+    margin-top: 0;
+}
+
+/* icons */
+
+.sorting-options ul {
+    margin-left: 0;
+}
+
+.sorting-options ul li {
+    display: inline;
+}
+
+.icon-keywords ul {
+    display: inline;
+    margin-left: 0;
+    padding-left: 0;
+}
+
+.icon-keywords ul li {
+    display: inline;
+}
+
+/* modules */
+
+.module {
+    background: #000000;
+    color: #4b4b4b;
+background-color: #000000;
+border: solid 1px #000000;
+
+}
+
+.module a { color: #ff70ff;
+ }
+.module a:visited { color: #8000ff;
+ }
+.module a:hover { color: #f000f0;
+ }
+.module a:active { color: #ff70ff;
+ }
+
+.module h2 {
+    color: #4b4b4b;
+background-color: #000000;
+
+    font-family: Verdana, Verdana; font-size: 1.1em;
+}
+
+.module-content {
+    font-family: Verdana, Verdana; 
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.module-content ul {
+    list-style: outside;
+    margin-left: 1em;
+    padding-left: 0;
+}
+.module-content li {
+    margin: .5em 0;
+}
+
+ul.userlite-interaction-links.icon-links {
+    margin-left: 0;
+    padding-left: 0;
+}
+
+ul.userlite-interaction-links.icon-links li {
+    display: inline;
+    padding: 0 .20em;
+}
+
+ul.userlite-interaction-links.text-links {
+    text-align: left;
+}
+
+.any-column .module-calendar table { margin: 0; }
+.module-calendar .module-content { text-align: left; }
+@media only screen and (min-width: 45em) {
+    .multiple-columns .module-calendar .module-content {
+        text-align: center;
+    }
+
+    .multiple-columns .module-calendar table {
+        margin: 0 auto;
+    }
+
+    .multiple-columns .module-syndicate .module-content {
+        text-align: center;
+    }
+}
+
+.module-calendar td {
+    padding: 1px;
+}
+.module-calendar td a {
+    display: block;
+    padding: 2px;
+}
+
+.search-box {
+    margin: .2em auto;
+    max-width: 100%;
+}
+
+.search-form .search-box-item,
+.search-form .search-button-item {
+    display: block
+}
+
+.search-form .comment_search_checkbox_item {
+    display: inline
+}
+
+/* wrap long content, particularly openid usernames */
+.module-pagesummary .ljuser {
+    white-space: normal !important;
+}
+.module-pagesummary .module-content {
+    word-wrap: break-word;
+}
+
+.module-credit .category-title {
+    font-weight: bold;
+}
+
+.tags_cloud li, .module-tags_cloud li { display: inline; }
+
+/* avoid Dramatic Woodchuck zoom effect on form fields (polls, search, etc.) */
+@media (pointer: coarse) {
+    input[type="text"], select {
+        font-size: 16px;
+    }
+}
+
+
+
+#header .module-wrapper {display: none;}
+    
+
+/* Stepping Stones
+/* by branchandroot
+******************************/
+
+/* General
+******************************/
+
+body {
+    border: none;
+    margin: 0;
+    }
+
+h1, h2, h3, h4, h5 {
+    font-weight: normal;
+    font-style: italic;
+    }
+
+a:hover { text-decoration: none; }
+
+blockquote {
+    border-left: 3px solid #000000;
+    padding-left: .5em;
+    }
+
+dl dt { font-weight: bold; }
+
+
+/* Header
+******************************/
+
+#header { background-color: transparent; }
+
+#header > .inner:first-child {
+    color: #4b4b4b;
+background-color: #000000;
+
+    margin: 1em 1em 1em 2em;
+    padding: .5em 1em;
+    }
+
+#title a {
+    color: #4b4b4b;
+    text-decoration: none;
+    }
+
+#pagetitle {
+    font-size: large;
+    text-align: right;
+    }
+
+@media only screen and (min-width: 45em) {
+    .column-right #header > .inner:first-child {
+        margin-left: 1em;
+        margin-right: 2em;
+        }
+
+    .three-columns-sides #header > .inner:first-child {
+        margin: 1em 2em;
+        }
+
+    #pagetitle {
+        margin-left: 15em;
+    }
+
+    .two-columns-right #pagetitle {
+        margin-left: 0;
+        margin-right: 15em;
+        text-align: left;
+        }
+
+    .three-columns-right #pagetitle {
+        margin-left: 0;
+        margin-right: 30em;
+        text-align: left;
+        }
+
+    .three-columns-sides #pagetitle {
+        margin-left: 15em;
+        margin-right: 15em;
+        text-align: center;
+        }
+
+    .three-columns-left #pagetitle {
+        margin-left: 30em;
+        }
+}
+
+/* Main Column
+******************************/
+
+#primary > .inner:first-child { padding: 0 2em; }
+
+.navigation { text-align: right; }
+
+.navigation ul {
+    color: #f8f8f8;
+background-color: #000000;
+border: solid 1px #000000;
+
+    display: inline;
+    margin: 0;
+    padding: .25em;
+    }
+
+.navigation ul li a { color: #ff70ff; }
+.navigation ul li a:visited { color: #8000ff; }
+.navigation ul li a:hover { color: #f000f0; }
+.navigation ul li a:active { color: #ff70ff; }
+
+/* Entries
+******************************/
+
+.one-column-split #entries { padding-top: 2em; }
+
+.entry-wrapper {
+    margin-bottom: 4em;
+    margin-left: .5em;
+    margin-top: 2em;
+    }
+
+.entry li { margin-left: 1em; }
+
+.entry-content hr {
+    display: block;
+    margin: 1em 10%;
+    }
+
+.entry {
+    padding: .5em;
+    position: relative;
+    }
+
+/* Set height to keep alignment */
+/* Use H3 default font size or custom size if set */
+.no-subject .entry .entry-title {
+    height: 1.17em;
+    height: em;
+    }
+
+.entry .contents { padding: .5em .5em 0; }
+
+.entry .contents .userpic {
+    position: absolute;
+    text-align: center;
+    top: -3em;
+    }
+
+.entry .contents .userpic a {
+    background-color: #000000;
+
+    display: block;
+    margin: auto;
+    }
+
+.entry .contents .userpic img {
+    background-color: #000000;
+
+    margin-top: 5px;
+    }
+
+.entry-content { margin: 1.5em 0; }
+
+.metadata { margin: 1em 0 0; }
+
+.metadata.top-metadata { margin-bottom: 2em; }
+
+.metadata-label { font-weight: bold; }
+
+.metadata ul li {
+    margin-left: 0;
+    padding-left: 0;
+    }
+
+.entry .footer { margin: .5em 0; }
+
+.entry .footer > .inner:first-child { padding: 1px; } /*float uneveness fix */
+
+.entry .tag { margin-left: .25em; }
+
+.entry .tag-text { font-weight: bold; }
+
+.entry .tag li {
+    margin-left: 0;
+    padding: .25em 0;
+    }
+
+ul.entry-management-links {
+    float: left;
+    margin-left: -1em;
+    margin-top: 1em;
+    }
+
+ul.entry-interaction-links {
+    margin-bottom: .25em;
+    margin-top: 1em;
+    min-height: 17px; /* prevent entry-management icons from shoving quickreply aside */
+    text-align: right;
+    } 
+
+/* Comments
+******************************/
+
+.comment {
+    color: #f8f8f8;
+background-color: #000000;
+border: solid 1px #000000;
+
+    margin-bottom: 1em;
+    margin-left: 1em;
+    padding: .5em;
+    }
+
+.comment a { color: #ff70ff; }
+.comment a:visited { color: #8000ff; }
+.comment a:hover { color: #f000f0; }
+.comment a:active { color: #ff70ff; }
+
+.comment .header .datetime { color: #ffffff; }
+
+.comment-title {
+    font-weight: bold;
+    padding: 0 0 .25em;
+    }
+
+/* Restore comment title color */
+.comment-title,
+.comment-title a {
+    color: #ffffff;
+    }
+
+.partial .comment-title {
+   display: inline;
+   margin-right: .2em;
+   }
+
+.partial .comment-poster:before { content: "- "; }
+
+.comment .contents { margin-top: .5em ; }
+
+.comment .poster-ip {
+    font-size: small;
+    color: #999999;
+    }
+
+.comment .contents .userpic { text-align: center; }
+
+.comment .contents .userpic a {
+    display: block;
+    background-color: #000000;
+
+    }
+
+.comment .contents .userpic img {
+    margin: 5px;
+    background-color: #000000;
+
+    }
+
+.comment-content,
+.comment .edittime {
+    margin-top: 1em;
+    }
+
+.comment .multiform-checkbox {
+    display: block;
+    font-size: small;
+    text-align: right;
+    }
+
+.comment .footer { margin: .5em 0; }
+
+.comment .footer > .inner:first-child { padding: 1px; } /*float uneveness fix */
+
+.comment-management-links { float: right; }
+
+.comment-interaction-links { text-align: left; }
+
+.bottomcomment,
+.comments-message {
+    color: #f8f8f8;
+background-color: #000000;
+border: solid 1px #000000;
+
+    padding: 1px 1px 3px;
+    }
+
+/* User color if there is one */
+.bottomcomment .entry-interaction-links a { color: #ff70ff; }
+
+/* Otherwise fall back on entry colors */
+.bottomcomment a { color: #ff70ff; }
+.bottomcomment a:visited { color: #8000ff; }
+.bottomcomment a:hover { color: #f000f0; }
+.bottomcomment a:active { color: #ff70ff; }
+
+.bottomcomment .entry-management-links,
+.bottomcomment .entry-interaction-links {
+    margin: .25em 0 .5em;
+    }
+
+.comment-pages { text-align: center; }
+
+#qrdiv { margin: 1em; }
+
+#qrdiv table { width: 100%; }
+
+
+    .entry .contents .userpic {
+        background: #000000 url("https://www.dreamwidth.org/img/profile_icons/user.png") no-repeat center;
+        width: 110px;
+        height: 110px;
+        }
+
+    .entry .contents .userpic a {
+        width: 102px;
+        height: 102px;
+        }
+
+    .comment .contents .userpic {
+        background: #000000 url("https://www.dreamwidth.org/img/profile_icons/user.png") no-repeat center;
+        width: 110px;
+        height: 110px;
+        }
+
+    .comment .contents .userpic a {
+        width: 102px;
+        height: 102px;
+        }
+    
+        .entry .contents .userpic { left: -1.5em; }
+
+        .comment .contents .userpic {
+            float: left;
+            margin: 0 .5em .5em -1.5em;
+            }
+
+        .entry .header,
+        .entry .poster {
+            padding-left: 100px;
+            }
+
+        .entry .poster { margin-left: -.5em; }
+
+        
+
+/* Archive Pages
+******************************/
+
+#archive-year .navigation { text-align: left; }
+
+div.month {
+    color: #f8f8f8;
+background-color: #000000;
+border: solid 1px #000000;
+
+    margin: 2em 0 2em -1em;
+    padding: 1em;
+    }
+
+.month a { color: #ff70ff; }
+.month a:visited { color: #8000ff; }
+.month a:hover { color: #f000f0; }
+.month a:active { color: #ff70ff; }
+
+table.month td,
+table.month th {
+    border-color: #999999;
+    vertical-align: top;
+    }
+
+.month caption { display: none; }
+
+#archive-year .month .footer {
+    padding: .5em;
+    text-align: center;
+    }
+
+#archive-month .navigation { text-align: center; }
+
+#archive-month .navigation ul { display: block; }
+
+.month dl .tag-text { font-style: italic; }
+
+.month dl h3.entry-title { font-weight: bold; }
+
+.day .inner > h3:first-child { text-align: center; }
+
+/* Tags Page
+******************************/
+
+.page-tags .tags-container {
+    color: #f8f8f8;
+background-color: #000000;
+border: solid 1px #000000;
+
+    margin-left: -1em;
+    padding: 1em;
+    }
+
+.tags-container a { color: #ff70ff; }
+.tags-container a:visited { color: #8000ff; }
+.tags-container a:hover { color: #f000f0; }
+.tags-container a:active { color: #ff70ff; }
+
+/* Icons Page
+******************************/
+
+.icons-container {
+    color: #f8f8f8;
+background-color: #000000;
+border: solid 1px #000000;
+
+    margin-left: -1em;
+    padding: 1em;
+    }
+
+.icons-container a { color: #ff70ff; }
+.icons-container a:visited { color: #8000ff; }
+.icons-container a:hover { color: #f000f0; }
+.icons-container a:active { color: #ff70ff; }
+
+.sorting-options ul { padding-left: 0; }
+
+.icons-container .icon { margin: 1em 0; }
+
+.icon-image {
+    float: left;
+    clear: left;
+    margin-bottom: .25em;
+    min-width: 100px;
+    padding-right: 1em;
+    }
+
+.icon-info { min-height: 100px; }
+
+.icon-info span { font-weight: bold; }
+
+.icon-info .default { text-decoration: underline; }
+
+.icon-keywords ul li { padding: .25em 0; }
+
+/* Sidebars
+******************************/
+
+#secondary,
+#tertiary {
+    margin-top: 0;
+    }
+
+#secondary > .inner:first-child,
+#tertiary > .inner:first-child {
+    color: #4b4b4b;
+background-color: #000000;
+border: solid 1px #000000;
+
+    margin: 1em;
+    padding: 0;
+    }
+
+@media only screen and (min-width: 45em) {
+    .multiple-columns #secondary,
+    .multiple-columns #tertiary {
+        margin-top: -5em;
+        }
+
+    .two-columns #tertiary > .inner:first-child {
+        background-color: transparent;
+        }
+
+    .two-columns #tertiary .module {
+        margin-right: 1em;
+        }
+}
+
+.module {
+    border: none;
+    margin-bottom: 1em;
+    padding: .6em;
+    }
+
+.module-header {
+    font-size: large;
+    padding: 1px 3px;
+    }
+
+.module-header a,
+.module-header a:visited {
+    color: #4b4b4b;
+    }
+
+.module-userprofile { text-align: center; }
+
+.module-userprofile .module-header { text-align: left; }
+
+.module-navlinks ul,
+.module-typelist ul {
+    list-style: none;
+    }
+
+.module-calendar table { font-size: small; }
+
+/* Footer
+******************************/
+
+#footer { background-color: transparent; }
+
+#footer > .inner:first-child {
+    background-color: #000000;
+    margin: 1em 2em;
+    padding: .5em;
+    }
+
+
