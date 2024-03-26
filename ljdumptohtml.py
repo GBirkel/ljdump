@@ -29,6 +29,7 @@
 import sys, os, codecs, pprint, argparse, shutil, xml.dom.minidom
 import html
 import re
+from datetime import *
 from xml.etree import ElementTree as ET
 from ljdumpsqlite import *
 
@@ -59,6 +60,124 @@ def create_template_page(title_text):
     return (page, inner_d)
 
 
+def render_one_entry_container(journal_name, entry, comments, all_icons_by_keyword, render_comments=False):
+    wrapper = ET.Element('div',
+        attrib={'class': 'entry-wrapper entry-wrapper-odd security-public restrictions-none journal-type-P has-userpic has-subject',
+                'id': ("entry-wrapper-%s" % (entry['itemid'])) })
+
+    # Pre-entry separator
+    sep_before = ET.SubElement(wrapper, 'div', attrib={'class': 'separator separator-before'})
+    sep_before_inner = ET.SubElement(sep_before, 'div', attrib={'class': 'inner'})
+
+    entry_div = ET.SubElement(wrapper, 'div',
+        attrib={'class': 'entry',
+                'id': ("entry-%s" % (entry['itemid'])) })
+
+    # Post-entry separator
+    sep_after = ET.SubElement(wrapper, 'div', attrib={'class': 'separator separator-after'})
+    sep_after_inner = ET.SubElement(sep_after, 'div', attrib={'class': 'inner'})
+
+    # Middle wrapper for entry
+    entry_inner = ET.SubElement(entry_div, 'div', attrib={'class': 'inner'})
+
+    # Entry header area
+    entry_header = ET.SubElement(entry_inner, 'div', attrib={'class': 'header'})
+    entry_header_inner = ET.SubElement(entry_header, 'div', attrib={'class': 'inner'})
+
+    # Title of entry, with link to individual entry
+    entry_title = ET.SubElement(entry_header_inner, 'h3', attrib={'class': 'entry-title'})
+    entry_title_a = ET.SubElement(entry_title, 'a',
+        attrib={'title': html.escape(entry['subject']),
+                'href': ("entries/entry-%s.html" % (entry['itemid']))})
+    entry_title_a.text = entry['subject']
+
+    # Datestamp
+    entry_date = ET.SubElement(entry_header_inner, 'span', attrib={'class': 'datetime'})
+    d = datetime.fromtimestamp(entry['logtime_unix'])
+    entry_date.text = html.escape(d.strftime("%b. %d, %Y %H:%M %p"))
+
+    # Another entry inner wrapper
+    entry_div = ET.SubElement(entry_inner, 'div')
+    entry_div_contents = ET.SubElement(entry_div, 'div', attrib={'class': 'contents'})
+    entry_div_contents_inner = ET.SubElement(entry_div_contents, 'div', attrib={'class': 'inner'})
+
+    # User icon (maybe custom, otherwise use the default)
+    div_userpic = ET.SubElement(entry_div_contents_inner, 'div', attrib={'class': 'userpic'})
+    userpic_k = entry['props_picture_keyword'] or '*'
+    if userpic_k in all_icons_by_keyword:
+        icon = all_icons_by_keyword[userpic_k]
+        img_userpic = ET.SubElement(div_userpic, 'img',
+            attrib={'src': ("userpics/%s" % (icon['filename']))})
+
+    # Identify the poster (if it's not the owner)
+    span_poster = ET.SubElement(entry_div_contents_inner, 'span', attrib={'class': 'poster entry-poster'})
+    span_user = ET.SubElement(span_poster, 'span',
+        attrib={'class': 'ljuser',
+                'style': 'white-space: nowrap;'})
+    img_user = ET.SubElement(span_user, 'img',
+        attrib={'src': 'user.png',
+                'style': 'vertical-align: text-bottom; border: 0; padding-right: 1px;',
+                'alt': '[personal profile]'})
+    a_user = ET.SubElement(span_user, 'a',
+        attrib={'href': ('https://www.dreamwidth.org/users/%s' % journal_name),
+                'style': 'font-weight:bold;'})
+    a_user.text = journal_name
+
+    # This is an empty div that the entry body will be placed in later.
+    ET.SubElement(entry_div_contents_inner, 'div',
+            attrib={'class': 'entry-content',
+                    'id': "entry-content-insertion-point"})
+
+    # Entry footer area
+    entry_footer = ET.SubElement(entry_inner, 'div', attrib={'class': 'footer'})
+    entry_footer_inner = ET.SubElement(entry_footer, 'div', attrib={'class': 'inner'})
+
+    # Tags (if any)
+    taglist = entry['props_taglist']
+    if taglist is not None:
+        tags_div = ET.SubElement(entry_footer_inner, 'div', attrib={'class': 'tag'})
+        tags_span = ET.SubElement(tags_div, 'span', attrib={'class': 'tag-text'})
+        tags_span.text = "Tags:"
+        tags_ul = ET.SubElement(tags_div, 'ul')
+        tags_split = taglist.split(', ')
+        if len(tags_split) > 1:
+            for i in range(0, len(tags_split)-1):
+                one_tag = tags_split[i]
+                tag_li = ET.SubElement(tags_ul, 'li')
+                tag_a = ET.SubElement(tag_li, 'a',
+                    attrib={'href': ("tags/%s.html" % one_tag),
+                            'rel': 'tag'})
+                tag_a.text = one_tag
+                tag_a.tail = ", "
+        one_tag = tags_split[-1]
+        tag_li = ET.SubElement(tags_ul, 'li')
+        tag_a = ET.SubElement(tag_li, 'a',
+            attrib={'href': ("tags/%s.html" % one_tag),
+                    'rel': 'tag'})
+        tag_a.text = one_tag
+
+    # Management links
+    management_ul = ET.SubElement(entry_footer_inner, 'ul', attrib={'class': 'entry-interaction-links text-links'})
+    # Permalink
+    permalink_li = ET.SubElement(management_ul, 'li', attrib={'class': 'entry-permalink first-item'})
+    permalink_a = ET.SubElement(permalink_li, 'a', attrib={'href': (entry['url'])})
+    permalink_a.text = "Original"
+    # Comments link
+    top_comments_count = 0
+    for c in comments:
+        if not c['parentid']:
+            top_comments_count += 1
+    if top_comments_count > 0:
+        comments_li = ET.SubElement(management_ul, 'li', attrib={'class': 'entry-permalink first-item'})
+        comments_a = ET.SubElement(comments_li, 'a', attrib={'href': ("entries/%s.html" % entry['itemid'])})
+        if top_comments_count > 1:
+            comments_a.text = ("%s comments" % top_comments_count)
+        else:
+            comments_a.text = "1 comment"
+
+    return wrapper
+
+
 def create_history_page(journal_name, entries, comments_grouped_by_entry, all_icons_by_keyword, page_number, previous_page_entry_count=0, next_page_entry_count=0):
     page, content = create_template_page("%s entries page %s" % (journal_name, page_number))
 
@@ -81,108 +200,14 @@ def create_history_page(journal_name, entries, comments_grouped_by_entry, all_ic
         topnav_a.text = ("Next %s" % (next_page_entry_count))
 
     for entry in entries:
-        wrapper = ET.SubElement(content, 'div',
-            attrib={'class': 'entry-wrapper entry-wrapper-odd security-public restrictions-none journal-type-P has-userpic has-subject',
-                    'id': ("entry-wrapper-%s" % (entry['itemid'])) })
-
-        # Pre-entry separator
-        sep_before = ET.SubElement(wrapper, 'div', attrib={'class': 'separator separator-before'})
-        sep_before_inner = ET.SubElement(sep_before, 'div', attrib={'class': 'inner'})
-
-        entry_div = ET.SubElement(wrapper, 'div',
-            attrib={'class': 'entry',
-                    'id': ("entry-%s" % (entry['itemid'])) })
-
-        # Post-entry separator
-        sep_after = ET.SubElement(wrapper, 'div', attrib={'class': 'separator separator-after'})
-        sep_after_inner = ET.SubElement(sep_after, 'div', attrib={'class': 'inner'})
-
-        # Middle wrapper for entry
-        entry_inner = ET.SubElement(entry_div, 'div', attrib={'class': 'inner'})
-
-        # Entry header area
-        entry_header = ET.SubElement(entry_inner, 'div', attrib={'class': 'header'})
-        entry_header_inner = ET.SubElement(entry_header, 'div', attrib={'class': 'inner'})
-
-        # Title of entry, with link to individual entry
-        entry_title = ET.SubElement(entry_header_inner, 'h3', attrib={'class': 'entry-title'})
-        entry_title_a = ET.SubElement(entry_title, 'a',
-            attrib={'title': html.escape(entry['subject']),
-                    'href': ("entries/entry-%s.html" % (entry['itemid']))})
-        entry_title_a.text = entry['subject']
-
-        # Datestamp
-        entry_date = ET.SubElement(entry_header_inner, 'span', attrib={'class': 'datetime'})
-        entry_date.text = html.escape(entry['logtime'])
-
-        # Another entry inner wrapper
-        entry_div = ET.SubElement(entry_inner, 'div')
-        entry_div_contents = ET.SubElement(entry_div, 'div', attrib={'class': 'contents'})
-        entry_div_contents_inner = ET.SubElement(entry_div_contents, 'div', attrib={'class': 'inner'})
-
-        # User icon (maybe custom, otherwise use the default)
-        div_userpic = ET.SubElement(entry_div_contents_inner, 'div', attrib={'class': 'userpic'})
-        userpic_k = entry['props_picture_keyword'] or '*'
-        if userpic_k in all_icons_by_keyword:
-            icon = all_icons_by_keyword[userpic_k]
-            img_userpic = ET.SubElement(div_userpic, 'img',
-                attrib={'src': ("userpics/%s" % (icon['filename']))})
-
-        # Identify the poster (if it's not the owner)
-        span_poster = ET.SubElement(entry_div_contents_inner, 'span', attrib={'class': 'poster entry-poster empty'})
-
-        # This is an empty div that the entry body will be placed in later.
-        ET.SubElement(entry_div_contents_inner, 'div',
-                attrib={'class': 'entry-content',
-                        'id': "entry-content-insertion-point"})
-
-        # Entry footer area
-        entry_footer = ET.SubElement(entry_inner, 'div', attrib={'class': 'footer'})
-        entry_footer_inner = ET.SubElement(entry_footer, 'div', attrib={'class': 'inner'})
-
-        # Tags (if any)
-        taglist = entry['props_taglist']
-        if taglist is not None:
-            tags_div = ET.SubElement(entry_footer_inner, 'div', attrib={'class': 'tag'})
-            tags_span = ET.SubElement(tags_div, 'span', attrib={'class': 'tag-text'})
-            tags_span.text = "Tags:"
-            tags_ul = ET.SubElement(tags_div, 'ul')
-            tags_split = taglist.split(', ')
-            if len(tags_split) > 1:
-                for i in range(0, len(tags_split)-1):
-                    one_tag = tags_split[i]
-                    tag_li = ET.SubElement(tags_ul, 'li')
-                    tag_a = ET.SubElement(tag_li, 'a',
-                        attrib={'href': ("tags/%s.html" % one_tag),
-                                'rel': 'tag'})
-                    tag_a.text = one_tag
-                    tag_a.tail = ", "
-            one_tag = tags_split[-1]
-            tag_li = ET.SubElement(tags_ul, 'li')
-            tag_a = ET.SubElement(tag_li, 'a',
-                attrib={'href': ("tags/%s.html" % one_tag),
-                        'rel': 'tag'})
-            tag_a.text = one_tag
-
-        # Management links
-        management_ul = ET.SubElement(entry_footer_inner, 'ul', attrib={'class': 'entry-interaction-links text-links'})
-        # Permalink
-        permalink_li = ET.SubElement(management_ul, 'li', attrib={'class': 'entry-permalink first-item'})
-        permalink_a = ET.SubElement(permalink_li, 'a', attrib={'href': (entry['url'])})
-        permalink_a.text = "Original"
-        # Comments link
-        comments = comments_grouped_by_entry[entry['itemid']]
-        top_comments_count = 0
-        for c in comments:
-            if not c['parentid']:
-                top_comments_count += 1
-        if top_comments_count > 0:
-            comments_li = ET.SubElement(management_ul, 'li', attrib={'class': 'entry-permalink first-item'})
-            comments_a = ET.SubElement(comments_li, 'a', attrib={'href': ("entries/%s.html" % entry['itemid'])})
-            if top_comments_count > 1:
-                comments_a.text = ("%s comments" % top_comments_count)
-            else:
-                comments_a.text = "1 comment"
+        wrapper = render_one_entry_container(
+                    journal_name=journal_name,
+                    entry=entry,
+                    comments=comments_grouped_by_entry[entry['itemid']],
+                    all_icons_by_keyword=all_icons_by_keyword,
+                    render_comments=False
+        )
+        content.append(wrapper)
 
     # Bottom navigation area (e.g. "previous" and "next" links)
     bottomnav_div = ET.SubElement(content, 'div', attrib={'class': 'navigation bottomnav' })
