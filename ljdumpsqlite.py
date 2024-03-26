@@ -140,6 +140,7 @@ def create_tables_if_missing(conn, verbose):
             props_opt_backdated INTEGER,
             props_picture_keyword TEXT,
             props_picture_mapid INTEGER,
+            props_taglist TEXT,
 
             raw_props TEXT NOT NULL
         )
@@ -230,6 +231,7 @@ def get_all_events(cur, verbose):
             props_opt_backdated,
             props_picture_keyword,
             props_picture_mapid,
+            props_taglist,
 
             raw_props
         FROM entries ORDER BY itemid""")
@@ -257,8 +259,9 @@ def get_all_events(cur, verbose):
             "props_opt_backdated": row[14],
             "props_picture_keyword": row[15],
             "props_picture_mapid": row[16],
+            "props_taglist": row[17],
 
-            "raw_props": row[17],
+            "raw_props": row[18],
         }
         entries.append(entry)
     return entries
@@ -301,6 +304,7 @@ def insert_or_update_event(cur, verbose, ev):
         "props_opt_backdated": ev['props'].get("opt_backdated", None),
         "props_picture_keyword": ev['props'].get("picture_keyword", None),
         "props_picture_mapid": ev['props'].get("picture_mapid", None),
+        "props_taglist": ev['props'].get("taglist", None),
 
         "raw_props": prop_dump,
     }
@@ -327,6 +331,7 @@ def insert_or_update_event(cur, verbose, ev):
                 props_opt_backdated,
                 props_picture_keyword,
                 props_picture_mapid,
+                props_taglist,
 
                 raw_props
             ) VALUES (
@@ -345,6 +350,7 @@ def insert_or_update_event(cur, verbose, ev):
                 :props_opt_backdated,
                 :props_picture_keyword,
                 :props_picture_mapid,
+                :props_taglist,
 
                 :raw_props
             )""", data)
@@ -371,6 +377,7 @@ def insert_or_update_event(cur, verbose, ev):
                 props_opt_backdated = :props_opt_backdated,
                 props_picture_keyword = :props_picture_keyword,
                 props_picture_mapid = :props_picture_mapid,
+                props_taglist = :props_taglist,
 
                 raw_props = :raw_props
 
