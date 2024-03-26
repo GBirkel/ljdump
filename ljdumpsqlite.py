@@ -205,6 +205,65 @@ def get_status_or_defaults(cur, lastmaxid, lastsync):
         return (row[0], row[1])
 
 
+def get_all_events(cur, verbose):
+    """ get all entries in the database
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :return: An array of entry objects
+    """
+    if verbose:
+        print('Fetching all entries from database')
+    cur.execute("""
+        SELECT
+            itemid,
+            anum,
+            eventtime, eventtime_unix,
+            logtime, logtime_unix,
+
+            subject, event, url,
+
+            props_commentalter,
+            props_current_moodid,
+            props_current_music,
+            props_import_source,
+            props_interface,
+            props_opt_backdated,
+            props_picture_keyword,
+            props_picture_mapid,
+
+            raw_props
+        FROM entries ORDER BY itemid""")
+    rows = cur.fetchall()
+    entries = []
+    for row in rows:
+        title = (row[1] or u'')
+        entry = {
+            "itemid": row[0],
+            "anum": row[1],
+            "eventtime": row[2],
+            "eventtime_unix": row[3],
+            "logtime": row[4],
+            "logtime_unix": row[5],
+
+            "subject": row[6] or u'(no subject)',
+            "event": row[7],
+            "url": row[8],
+
+            "props_commentalter": row[9],
+            "props_current_moodid": row[10],
+            "props_current_music": row[11],
+            "props_import_source": row[12],
+            "props_interface": row[13],
+            "props_opt_backdated": row[14],
+            "props_picture_keyword": row[15],
+            "props_picture_mapid": row[16],
+
+            "raw_props": row[17],
+        }
+        entries.append(entry)
+    return entries
+
+
 def insert_or_update_event(cur, verbose, ev):
     """ insert a new entry or update any preexisting one with a matching itemid
     :param cur: database cursor
@@ -218,6 +277,8 @@ def insert_or_update_event(cur, verbose, ev):
     eventtime = eventtime.replace(tzinfo=tz_utc)
     logtime = datetime.strptime(ev['logtime'], '%Y-%m-%d %H:%M:%S')
     logtime = logtime.replace(tzinfo=tz_utc)
+    # Preserve all the properties as an XML chunk in case there are
+    # some we're not aware of here.
     prop_dump = object_to_xml_string('<?xml version="1.0"?>', "props", ev['props'])
 
     data = {
@@ -316,6 +377,46 @@ def insert_or_update_event(cur, verbose, ev):
             WHERE itemid = :itemid""", data)
 
 
+def get_all_comments(cur, verbose):
+    """ get all comments in the database
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :return: An array of comment objects
+    """
+    if verbose:
+        print('Fetching all comments from database')
+    cur.execute("""
+        SELECT
+            id,
+            entryid,
+            date, date_unix,
+
+            parentid,
+            posterid,
+            user,
+
+            subject, body, state
+        FROM comments ORDER BY id""")
+    rows = cur.fetchall()
+    comments = []
+    for row in rows:
+        title = (row[1] or u'')
+        comment = {
+            "id": row[0],
+            "entryid": row[1],
+            "date": row[2],
+            "date_unix": row[3],
+            "parentid": row[4],
+            "posterid": row[5],
+            "user": row[6],
+            "subject": row[7],
+            "body": row[8],
+            "state": row[9],
+        }
+        comments.append(comment)
+    return comments
+
+
 def insert_or_update_comment(cur, verbose, comment):
     """ insert a new comment or update any preexisting one with a matching id
     :param cur: database cursor
@@ -383,6 +484,28 @@ def insert_or_update_comment(cur, verbose, comment):
 
             WHERE id = :id""", comment)
         return False
+
+
+def get_all_icons(cur, verbose):
+    """ get all icons in the database
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :return: An array of icon objects
+    """
+    if verbose:
+        print('Fetching all icons from database')
+    cur.execute("SELECT keywords, filename, url FROM icons")
+    rows = cur.fetchall()
+    icons = []
+    for row in rows:
+        title = (row[1] or u'')
+        icon = {
+            "keywords": row[0],
+            "filename": row[1],
+            "url": row[2]
+        }
+        icons.append(icon)
+    return icons
 
 
 def insert_or_update_icon(cur, verbose, data):
