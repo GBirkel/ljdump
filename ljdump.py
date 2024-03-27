@@ -42,6 +42,7 @@ MimeExtensions = {
     "image/png": ".png",
 }
 
+
 def flatresponse(response):
     r = {}
     while True:
@@ -56,6 +57,7 @@ def flatresponse(response):
         r[name] = value
     return r
 
+
 def getljsession(server, username, password):
     """Log in with password and get session cookie."""
     qs = "mode=sessiongenerate&user=%s&auth_method=clear&password=%s" % (urllib.quote(username), urllib.quote(password))
@@ -64,39 +66,6 @@ def getljsession(server, username, password):
     r.close()
     return response['ljsession']
 
-def dumpelement(f, name, e):
-    f.write("<%s>\n" % name)
-    for k in e.keys():
-        if isinstance(e[k], {}.__class__):
-            dumpelement(f, k, e[k])
-        else:
-            try:
-                s = unicode(str(e[k]), "UTF-8")
-            except UnicodeDecodeError:
-                # fall back to Latin-1 for old entries that aren't UTF-8
-                s = unicode(str(e[k]), "cp1252")
-            f.write("<%s>%s</%s>\n" % (k, saxutils.escape(s), k))
-    f.write("</%s>\n" % name)
-
-def writedump(fn, event):
-    f = codecs.open(fn, "w", "UTF-8")
-    f.write("""<?xml version="1.0"?>\n""")
-    dumpelement(f, "event", event)
-    f.close()
-
-def writelast(journal, lastsync, lastmaxid):
-    f = open("%s/.last" % journal, "w")
-    f.write("%s\n" % lastsync)
-    f.write("%s\n" % lastmaxid)
-    f.close()
-
-def createxml(doc, name, map):
-    e = doc.createElement(name)
-    for k in map.keys():
-        me = doc.createElement(k)
-        me.appendChild(doc.createTextNode(map[k]))
-        e.appendChild(me)
-    return e
 
 def gettext(e):
     if len(e) == 0:
@@ -105,7 +74,6 @@ def gettext(e):
 
 
 def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at_fifty=False, make_pages=False):
-    use_sqlite=True
 
     m = re.search("(.*)/interface/xmlrpc", Server)
     if m:
@@ -138,35 +106,14 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
     conn = None
     cur = None
 
-    if use_sqlite:
-        # create a database connection
-        conn = connect_to_local_journal_db("%s/journal.db" % journal_short_name, verbose)
-        if not conn:
-            os._exit(os.EX_IOERR)
-        create_tables_if_missing(conn, verbose)
-        cur = conn.cursor()
+    # create a database connection
+    conn = connect_to_local_journal_db("%s/journal.db" % journal_short_name, verbose)
+    if not conn:
+        os._exit(os.EX_IOERR)
+    create_tables_if_missing(conn, verbose)
+    cur = conn.cursor()
 
-    lastsync = ""
-    lastmaxid = 0
-
-    if use_sqlite:
-        (lastmaxid, lastsync) = get_status_or_defaults(cur, lastmaxid, lastsync)
-    else:
-        try:
-            f = open("%s/.last" % journal_short_name, "r")
-            lastsync = f.readline()
-            if lastsync[-1] == '\n':
-                lastsync = lastsync[:len(lastsync)-1]
-            lastmaxid = f.readline()
-            if len(lastmaxid) > 0 and lastmaxid[-1] == '\n':
-                lastmaxid = lastmaxid[:len(lastmaxid)-1]
-            if lastmaxid == "":
-                lastmaxid = 0
-            else:
-                lastmaxid = int(lastmaxid)
-            f.close()
-        except:
-            pass
+    (lastmaxid, lastsync) = get_status_or_defaults(cur, 0, "")
 
     #
     # Entries (events)
@@ -230,12 +177,7 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
                     #          hour=d.hour, min=d.minute, **ev)
                     #r1 = server.LJ.XMLRPC.editevent(authed(ev1))
 
-                    if use_sqlite:
-                        insert_or_update_event(cur, verbose, ev)
-                    else:
-                        if verbose:
-                            print("%s %s %s" % (item['item'], ev['eventtime'], ev.get('subject', "(No subject)")))
-                        writedump("%s/%s" % (journal_short_name, item['item']), ev)
+                    insert_or_update_event(cur, verbose, ev)
 
                     if stop_at_fifty and newentries > 49:
                         break
@@ -365,55 +307,23 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
                 continue
             jitemid = c.getAttribute("jitemid")
 
-            if use_sqlite:
-                db_comment = {
-                    'id': id,
-                    'entryid': int(jitemid),
-                    'date': gettext(c.getElementsByTagName("date")),
-                    'parentid': c.getAttribute("parentid"),
-                    'posterid': c.getAttribute("posterid"),
-                    'user': None,
-                    'subject': gettext(c.getElementsByTagName("subject")),
-                    'body': gettext(c.getElementsByTagName("body")),
-                    'state': metacache[id]['state']
-                }
-                if usermap.has_key(c.getAttribute("posterid")):
-                    db_comment["user"] = usermap[c.getAttribute("posterid")]
+            db_comment = {
+                'id': id,
+                'entryid': int(jitemid),
+                'date': gettext(c.getElementsByTagName("date")),
+                'parentid': c.getAttribute("parentid"),
+                'posterid': c.getAttribute("posterid"),
+                'user': None,
+                'subject': gettext(c.getElementsByTagName("subject")),
+                'body': gettext(c.getElementsByTagName("body")),
+                'state': metacache[id]['state']
+            }
+            if usermap.has_key(c.getAttribute("posterid")):
+                db_comment["user"] = usermap[c.getAttribute("posterid")]
 
-                was_new = insert_or_update_comment(cur, verbose, db_comment)
-                if was_new:
-                    newcomments += 1
-            else:
-
-                comment = {
-                    'id': str(id),
-                    'parentid': c.getAttribute("parentid"),
-                    'subject': gettext(c.getElementsByTagName("subject")),
-                    'date': gettext(c.getElementsByTagName("date")),
-                    'body': gettext(c.getElementsByTagName("body")),
-                    'state': metacache[id]['state'],
-                }
-                if usermap.has_key(c.getAttribute("posterid")):
-                    comment["user"] = usermap[c.getAttribute("posterid")]
-
-                try:
-                    entry = xml.dom.minidom.parse("%s/C-%s" % (journal_short_name, jitemid))
-                except:
-                    entry = xml.dom.minidom.getDOMImplementation().createDocument(None, "comments", None)
-                found = False
-                for d in entry.getElementsByTagName("comment"):
-                    if int(d.getElementsByTagName("id")[0].firstChild.nodeValue) == id:
-                        found = True
-                        break
-                if found:
-                    print("Warning: downloaded duplicate comment id %d in jitemid %s" % (id, jitemid))
-                else:
-                    print("Writing comment id %d from %s" % (id, comment['date']))
-                    entry.documentElement.appendChild(createxml(entry, "comment", comment))
-                    f = codecs.open("%s/C-%s" % (journal_short_name, jitemid), "w", "UTF-8")
-                    entry.writexml(f)
-                    f.close()
-                    newcomments += 1
+            was_new = insert_or_update_comment(cur, verbose, db_comment)
+            if was_new:
+                newcomments += 1
 
             comments_already_fetched[id] = True
 
@@ -424,36 +334,34 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
     # Mood information
     #
 
-    if use_sqlite:
-        r = server.LJ.XMLRPC.login(authed({
-            'ver': 1,
-            'getmoods': 1,
-        }))
+    r = server.LJ.XMLRPC.login(authed({
+        'ver': 1,
+        'getmoods': 1,
+    }))
 
-        for t in r['moods']:
-            insert_or_update_mood(cur, verbose,
-                {   'id': t['id'],
-                    'name': t['name'],
-                    'parent': t['parent']})
+    for t in r['moods']:
+        insert_or_update_mood(cur, verbose,
+            {   'id': t['id'],
+                'name': t['name'],
+                'parent': t['parent']})
 
     #
     # Tag information
     #
 
-    if use_sqlite:
-        r = server.LJ.XMLRPC.getusertags(authed({
-            'ver': 1,
-        }))
+    r = server.LJ.XMLRPC.getusertags(authed({
+        'ver': 1,
+    }))
 
-        for t in r['tags']:
-            insert_or_update_tag(cur, verbose,
-                {   'name': t['name'],
-                    'display': t['display'],
-                    'security_private': t['security']['private'],
-                    'security_protected': t['security']['protected'],
-                    'security_public': t['security']['public'],
-                    'security_level': t['display'],
-                    'uses': t['uses']})
+    for t in r['tags']:
+        insert_or_update_tag(cur, verbose,
+            {   'name': t['name'],
+                'display': t['display'],
+                'security_private': t['security']['private'],
+                'security_protected': t['security']['protected'],
+                'security_public': t['security']['public'],
+                'security_level': t['display'],
+                'uses': t['uses']})
 
     #
     # Userpics and user general info
@@ -484,10 +392,7 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
                 pass
         if verbose:
             print("Fetching userpics for: %s" % Username)
-        if not use_sqlite:
-            f = open("%s/userpics.xml" % Username, "w")
-            print >>f, """<?xml version="1.0"?>"""
-            print >>f, "<userpics>"
+
         for p in userpics:
             pic = urllib2.urlopen(userpics[p])
             ext = MimeExtensions.get(pic.info()["Content-Type"], "")
@@ -502,23 +407,14 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
             shutil.copyfileobj(pic, picf)
             pic.close()
             picf.close()
-            if use_sqlite:
-                insert_or_update_icon(cur, verbose,
-                    {'keywords': p,
-                     'filename': (picfn+ext),
-                     'url': userpics[p]})
-            else:
-                print >>f, """<userpic keyword="%s" url="%s" />""" % (p, userpics[p])
-        if not use_sqlite:
-            print >>f, "</userpics>"
-            f.close()
+            insert_or_update_icon(cur, verbose,
+                {'keywords': p,
+                    'filename': (picfn+ext),
+                    'url': userpics[p]})
 
     lastmaxid = maxid
 
-    if use_sqlite:
-        set_status(cur, lastmaxid, lastsync)
-    else:
-        writelast(journal_short_name, lastsync, lastmaxid)
+    set_status(cur, lastmaxid, lastsync)
 
     if verbose or (newentries > 0 or newcomments > 0):
         if origlastsync:
@@ -528,8 +424,7 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
     if errors > 0:
         print("%d errors" % errors)
 
-    if use_sqlite:
-        finish_with_database(conn, cur)
+    finish_with_database(conn, cur)
 
     if make_pages:
         ljdumptohtml(Username, journal_short_name, verbose)
