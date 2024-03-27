@@ -39,18 +39,33 @@ def write_html(filename, html_as_string):
     f.write(html_as_string)
 
 
-def create_template_page(title_text):
+def create_template_page(journal_name, title_text):
     page = ET.Element('html',
         attrib={'class': 'csstransforms csstransitions flexbox fontface generatedcontent no-touchevents no-touch'})
     head = ET.SubElement(page, 'head')
+
+    # So browsers will realize we're dealing with UTF-8 and interpret it correctly.
+    ET.SubElement(head, 'meta',
+        attrib={'charset': 'utf-8'})
+
     ET.SubElement(head, 'link',
-        attrib={'rel': 'stylesheet', 'href': 'stylesheet.css'})
+        attrib={'rel': 'stylesheet', 'href': '../stylesheet.css'})
     title = ET.SubElement(head, 'title')
     title.text = title_text
     body = ET.SubElement(page, 'body',
         attrib={'class': 'page-recent two-columns column-left any-column multiple-columns two-columns-left logged-in my-journal not-subscribed has-access'})
     canvas = ET.SubElement(body, 'div', attrib={'id': 'canvas'})
     inner = ET.SubElement(canvas, 'div', attrib={'class': 'inner'})
+
+    header = ET.SubElement(inner, 'div', attrib={'id': 'header'})
+    header_inner = ET.SubElement(header, 'div', attrib={'class': 'inner'})
+    header_h_title = ET.SubElement(header_inner, 'h1', attrib={'id': 'title'})
+    header_h_title_span = ET.SubElement(header_h_title, 'span')
+    header_h_title_span.text = journal_name
+    header_h_pagetitle = ET.SubElement(header_inner, 'h2', attrib={'id': 'pagetitle'})
+    header_h_pagetitle_span = ET.SubElement(header_h_pagetitle, 'span')
+    header_h_pagetitle_span.text = title_text
+
     content = ET.SubElement(inner, 'div', attrib={'id': 'content'})
     inner_b = ET.SubElement(content, 'div', attrib={'class': 'inner'})
     primary = ET.SubElement(inner_b, 'div', attrib={'id': 'primary'})
@@ -60,7 +75,7 @@ def create_template_page(title_text):
     return (page, inner_d)
 
 
-def render_one_entry_container(journal_name, entry, comments, all_icons_by_keyword, render_comments=False):
+def render_one_entry_container(journal_name, entry, comments, icons_by_keyword, moods_by_id, render_comments=False):
     wrapper = ET.Element('div',
         attrib={'class': 'entry-wrapper entry-wrapper-odd security-public restrictions-none journal-type-P has-userpic has-subject',
                 'id': ("entry-wrapper-%s" % (entry['itemid'])) })
@@ -85,15 +100,16 @@ def render_one_entry_container(journal_name, entry, comments, all_icons_by_keywo
     entry_header_inner = ET.SubElement(entry_header, 'div', attrib={'class': 'inner'})
 
     # Title of entry, with link to individual entry
+    title = entry['subject']
     entry_title = ET.SubElement(entry_header_inner, 'h3', attrib={'class': 'entry-title'})
     entry_title_a = ET.SubElement(entry_title, 'a',
-        attrib={'title': html.escape(entry['subject']),
-                'href': ("entries/entry-%s.html" % (entry['itemid']))})
-    entry_title_a.text = entry['subject']
+        attrib={'title': title,
+                'href': ("../entries/entry-%s.html" % (entry['itemid']))})
+    entry_title_a.text = title
 
     # Datestamp
     entry_date = ET.SubElement(entry_header_inner, 'span', attrib={'class': 'datetime'})
-    d = datetime.fromtimestamp(entry['logtime_unix'])
+    d = datetime.fromtimestamp(entry['eventtime_unix'])
     entry_date.text = html.escape(d.strftime("%b. %d, %Y %H:%M %p"))
 
     # Another entry inner wrapper
@@ -104,10 +120,10 @@ def render_one_entry_container(journal_name, entry, comments, all_icons_by_keywo
     # User icon (maybe custom, otherwise use the default)
     div_userpic = ET.SubElement(entry_div_contents_inner, 'div', attrib={'class': 'userpic'})
     userpic_k = entry['props_picture_keyword'] or '*'
-    if userpic_k in all_icons_by_keyword:
-        icon = all_icons_by_keyword[userpic_k]
+    if userpic_k in icons_by_keyword:
+        icon = icons_by_keyword[userpic_k]
         img_userpic = ET.SubElement(div_userpic, 'img',
-            attrib={'src': ("userpics/%s" % (icon['filename']))})
+            attrib={'src': ("../userpics/%s" % (icon['filename']))})
 
     # Identify the poster (if it's not the owner)
     span_poster = ET.SubElement(entry_div_contents_inner, 'span', attrib={'class': 'poster entry-poster'})
@@ -115,7 +131,7 @@ def render_one_entry_container(journal_name, entry, comments, all_icons_by_keywo
         attrib={'class': 'ljuser',
                 'style': 'white-space: nowrap;'})
     img_user = ET.SubElement(span_user, 'img',
-        attrib={'src': 'user.png',
+        attrib={'src': '../user.png',
                 'style': 'vertical-align: text-bottom; border: 0; padding-right: 1px;',
                 'alt': '[personal profile]'})
     a_user = ET.SubElement(span_user, 'a',
@@ -128,6 +144,35 @@ def render_one_entry_container(journal_name, entry, comments, all_icons_by_keywo
             attrib={'class': 'entry-content',
                     'id': "entry-content-insertion-point"})
 
+    # Entry metadata area
+    if (entry['props_current_moodid'] is not None) or (entry['props_current_music'] is not None):
+        entry_metadata = ET.SubElement(entry_div_contents_inner, 'div',
+                attrib={'class': 'metadata bottom-metadata'})
+        entry_metadata_ul = ET.SubElement(entry_metadata, 'ul')
+        # Current mood
+        if entry['props_current_moodid'] is not None:
+            if entry['props_current_moodid'] in moods_by_id:
+                mood_li = ET.SubElement(entry_metadata_ul, 'li',
+                        attrib={'class': 'metadata-mood'})
+                mood_label = ET.SubElement(mood_li, 'span',
+                        attrib={'class': 'metadata-label metadata-label-mood'})
+                mood_label.text = u"Current Mood: "
+                # Alas, there is no XML-RPC support for fetching which icon set a user has.
+                # There isn't even a console command for it.
+                mood_name = ET.SubElement(mood_li, 'span',
+                        attrib={'class': 'metadata-item metadata-item-mood'})
+                mood_name.text = moods_by_id[entry['props_current_moodid']]['name']
+        # Current music
+        if entry['props_current_music'] is not None:
+            music_li = ET.SubElement(entry_metadata_ul, 'li',
+                    attrib={'class': 'metadata-music'})
+            music_label = ET.SubElement(music_li, 'span',
+                    attrib={'class': 'metadata-label metadata-label-music'})
+            music_label.text = u"Current Music: "
+            music_name = ET.SubElement(music_li, 'span',
+                    attrib={'class': 'metadata-item metadata-item-music'})
+            music_name.text = entry['props_current_music']
+
     # Entry footer area
     entry_footer = ET.SubElement(entry_inner, 'div', attrib={'class': 'footer'})
     entry_footer_inner = ET.SubElement(entry_footer, 'div', attrib={'class': 'inner'})
@@ -137,7 +182,7 @@ def render_one_entry_container(journal_name, entry, comments, all_icons_by_keywo
     if taglist is not None:
         tags_div = ET.SubElement(entry_footer_inner, 'div', attrib={'class': 'tag'})
         tags_span = ET.SubElement(tags_div, 'span', attrib={'class': 'tag-text'})
-        tags_span.text = "Tags:"
+        tags_span.text = u"Tags: "
         tags_ul = ET.SubElement(tags_div, 'ul')
         tags_split = taglist.split(', ')
         if len(tags_split) > 1:
@@ -148,7 +193,7 @@ def render_one_entry_container(journal_name, entry, comments, all_icons_by_keywo
                     attrib={'href': ("tags/%s.html" % one_tag),
                             'rel': 'tag'})
                 tag_a.text = one_tag
-                tag_a.tail = ", "
+                tag_a.tail = u", "
         one_tag = tags_split[-1]
         tag_li = ET.SubElement(tags_ul, 'li')
         tag_a = ET.SubElement(tag_li, 'a',
@@ -161,7 +206,7 @@ def render_one_entry_container(journal_name, entry, comments, all_icons_by_keywo
     # Permalink
     permalink_li = ET.SubElement(management_ul, 'li', attrib={'class': 'entry-permalink first-item'})
     permalink_a = ET.SubElement(permalink_li, 'a', attrib={'href': (entry['url'])})
-    permalink_a.text = "Original"
+    permalink_a.text = u"Original"
     # Comments link
     top_comments_count = 0
     for c in comments:
@@ -171,15 +216,89 @@ def render_one_entry_container(journal_name, entry, comments, all_icons_by_keywo
         comments_li = ET.SubElement(management_ul, 'li', attrib={'class': 'entry-permalink first-item'})
         comments_a = ET.SubElement(comments_li, 'a', attrib={'href': ("entries/%s.html" % entry['itemid'])})
         if top_comments_count > 1:
-            comments_a.text = ("%s comments" % top_comments_count)
+            comments_a.text = (u"%s comments" % top_comments_count)
         else:
-            comments_a.text = "1 comment"
+            comments_a.text = u"1 comment"
 
     return wrapper
 
 
-def create_history_page(journal_name, entries, comments_grouped_by_entry, all_icons_by_keyword, page_number, previous_page_entry_count=0, next_page_entry_count=0):
-    page, content = create_template_page("%s entries page %s" % (journal_name, page_number))
+def create_single_entry_page(journal_name, entry, comments, icons_by_keyword, moods_by_id, previous_entry=None, next_entry=None):
+    page, content = create_template_page(journal_name, "%s entry %s" % (journal_name, entry['itemid']))
+
+    # Top navigation area (e.g. "previous" and "next" links)
+    topnav_div = ET.SubElement(content, 'div', attrib={'class': 'navigation topnav' })
+    topnav_inner = ET.SubElement(topnav_div, 'div', attrib={'class': 'inner' })
+    topnav_ul = ET.SubElement(topnav_inner, 'ul')
+    if previous_entry is not None:
+        topnav_li = ET.SubElement(topnav_ul, 'li', attrib={'class': 'page-back' })
+        topnav_a = ET.SubElement(topnav_li, 'a', attrib={'href': ("entry-%s.html" % (previous_entry['itemid']))})
+        topnav_a.text = u"Previous Entry"
+
+    if (previous_entry is not None) and (next_entry is not None):
+        topnav_li = ET.SubElement(topnav_ul, 'li', attrib={'class': 'page-separator' })
+        topnav_li.text = u" | "
+
+    if next_entry is not None:
+        topnav_li = ET.SubElement(topnav_ul, 'li', attrib={'class': 'page-forward' })
+        topnav_a = ET.SubElement(topnav_li, 'a', attrib={'href': ("entry-%s.html" % (next_entry['itemid']))})
+        topnav_a.text = u"Next Entry"
+
+    wrapper = render_one_entry_container(
+                journal_name=journal_name,
+                entry=entry,
+                comments=comments,
+                icons_by_keyword=icons_by_keyword,
+                moods_by_id=moods_by_id,
+                render_comments=False
+    )
+    content.append(wrapper)
+
+    # Bottom navigation area (e.g. "previous" and "next" links)
+    bottomnav_div = ET.SubElement(content, 'div', attrib={'class': 'navigation bottomnav' })
+    bottomnav_inner = ET.SubElement(bottomnav_div, 'div', attrib={'class': 'inner' })
+    bottomnav_ul = ET.SubElement(bottomnav_inner, 'ul')
+    if previous_entry is not None:
+        bottomnav_li = ET.SubElement(bottomnav_ul, 'li', attrib={'class': 'page-back' })
+        bottomnav_a = ET.SubElement(bottomnav_li, 'a', attrib={'href': ("entry-%s.html" % (previous_entry['itemid']))})
+        bottomnav_a.text = u"Previous Entry"
+
+    if (previous_entry is not None) and (next_entry is not None):
+        bottomnav_li = ET.SubElement(bottomnav_ul, 'li', attrib={'class': 'page-separator' })
+        bottomnav_li.text = u" | "
+
+    if next_entry is not None:
+        bottomnav_li = ET.SubElement(bottomnav_ul, 'li', attrib={'class': 'page-forward' })
+        bottomnav_a = ET.SubElement(bottomnav_li, 'a', attrib={'href': ("entry-%s.html" % (next_entry['itemid']))})
+        bottomnav_a.text = u"Next Entry"
+
+    # We're going to be weird here, because journal entries often contain weird and
+    # broken HTML.  We really can't rely on parsing a journal entry into XML and then
+    # embedding it as elements.  There is also no clean way to slipstream string data
+    # into the XML during the rendering process (it either gets parsed as usual before
+    # insertion, or run through an escaper).  So we're going to render the document as
+    # text right here, and then do a text search (a split) to find the div with id
+    # "entry-content-insertion-point".  Then we'll interleave the entry contents and
+    # re-assemble the document.  It's hacky but it avoids the need to police the HTML
+    # skills of thousands of users whose entires render fine in Dreamwidth.
+    html_as_string = ET.tostring(page, encoding="utf-8", method="html").decode('utf-8')
+    html_split_on_insertion_points = html_as_string.split(u'<div class="entry-content" id="entry-content-insertion-point"></div>')
+
+    text_strings = []
+    entry_body = entry['event']
+    entry_body = re.sub("\n", "<br />\n", entry_body)
+    text_strings.append(html_split_on_insertion_points[0])
+    text_strings.append(u'<div class="entry-content" id="entry-content-insertion-point">')
+    text_strings.append(entry_body)
+    text_strings.append(u'</div>')
+    # Add the tail end of the rendered HTML
+    text_strings.append(html_split_on_insertion_points[-1])
+
+    return ''.join(text_strings)
+
+
+def create_history_page(journal_name, entries, comments_grouped_by_entry, icons_by_keyword, moods_by_id, page_number, previous_page_entry_count=0, next_page_entry_count=0):
+    page, content = create_template_page(journal_name, "%s entries page %s" % (journal_name, page_number))
 
     # Top navigation area (e.g. "previous" and "next" links)
     topnav_div = ET.SubElement(content, 'div', attrib={'class': 'navigation topnav' })
@@ -188,23 +307,24 @@ def create_history_page(journal_name, entries, comments_grouped_by_entry, all_ic
     if previous_page_entry_count > 0:
         topnav_li = ET.SubElement(topnav_ul, 'li', attrib={'class': 'page-back' })
         topnav_a = ET.SubElement(topnav_li, 'a', attrib={'href': ("page-%s.html" % (page_number-1))})
-        topnav_a.text = ("Previous %s" % (previous_page_entry_count))
+        topnav_a.text = (u"Previous %s" % (previous_page_entry_count))
 
     if previous_page_entry_count > 0 and next_page_entry_count > 0:
         topnav_li = ET.SubElement(topnav_ul, 'li', attrib={'class': 'page-separator' })
-        topnav_li.text = " | "
+        topnav_li.text = u" | "
 
     if next_page_entry_count > 0:
         topnav_li = ET.SubElement(topnav_ul, 'li', attrib={'class': 'page-forward' })
         topnav_a = ET.SubElement(topnav_li, 'a', attrib={'href': ("page-%s.html" % (page_number+1))})
-        topnav_a.text = ("Next %s" % (next_page_entry_count))
+        topnav_a.text = (u"Next %s" % (next_page_entry_count))
 
     for entry in entries:
         wrapper = render_one_entry_container(
                     journal_name=journal_name,
                     entry=entry,
                     comments=comments_grouped_by_entry[entry['itemid']],
-                    all_icons_by_keyword=all_icons_by_keyword,
+                    icons_by_keyword=icons_by_keyword,
+                    moods_by_id=moods_by_id,
                     render_comments=False
         )
         content.append(wrapper)
@@ -216,16 +336,16 @@ def create_history_page(journal_name, entries, comments_grouped_by_entry, all_ic
     if previous_page_entry_count > 0:
         bottomnav_li = ET.SubElement(bottomnav_ul, 'li', attrib={'class': 'page-back' })
         bottomnav_a = ET.SubElement(bottomnav_li, 'a', attrib={'href': ("page-%s.html" % (page_number-1))})
-        bottomnav_a.text = ("Previous %s" % (previous_page_entry_count))
+        bottomnav_a.text = (u"Previous %s" % (previous_page_entry_count))
 
     if previous_page_entry_count > 0 and next_page_entry_count > 0:
         bottomnav_li = ET.SubElement(bottomnav_ul, 'li', attrib={'class': 'page-separator' })
-        bottomnav_li.text = " | "
+        bottomnav_li.text = u" | "
 
     if next_page_entry_count > 0:
         bottomnav_li = ET.SubElement(bottomnav_ul, 'li', attrib={'class': 'page-forward' })
         bottomnav_a = ET.SubElement(bottomnav_li, 'a', attrib={'href': ("page-%s.html" % (page_number+1))})
-        bottomnav_a.text = ("Next %s" % (next_page_entry_count))
+        bottomnav_a.text = (u"Next %s" % (next_page_entry_count))
 
     # We're going to be weird here, because journal entries often contain weird and
     # broken HTML.  We really can't rely on parsing a journal entry into XML and then
@@ -236,8 +356,8 @@ def create_history_page(journal_name, entries, comments_grouped_by_entry, all_ic
     # "entry-content-insertion-point".  Then we'll interleave the entry contents and
     # re-assemble the document.  It's hacky but it avoids the need to police the HTML
     # skills of thousands of users whose entires render fine in Dreamwidth.
-    html_as_string = ET.tostring(page, encoding='utf8', method='html')
-    html_split_on_insertion_points = html_as_string.split('<div class="entry-content" id="entry-content-insertion-point"></div>')
+    html_as_string = ET.tostring(page, encoding="utf-8", method="html").decode('utf-8')
+    html_split_on_insertion_points = html_as_string.split(u'<div class="entry-content" id="entry-content-insertion-point"></div>')
 
     text_strings = []
     for i in range(0, len(entries)):
@@ -251,7 +371,7 @@ def create_history_page(journal_name, entries, comments_grouped_by_entry, all_ic
     # Add the tail end of the rendered HTML
     text_strings.append(html_split_on_insertion_points[-1])
 
-    return u''.join(text_strings)
+    return ''.join(text_strings)
 
 
 def ljdumptohtml(Username, journal_name, verbose=True):
@@ -297,7 +417,56 @@ def ljdumptohtml(Username, journal_name, verbose=True):
             comment_children[parent_id].append(id)
 
     # Sort all entries by UNIX timestamp, oldest to newest
-    entries_by_date = sorted(all_entries, key=lambda x: x['logtime_unix'], reverse=False)
+    entries_by_date = sorted(all_entries, key=lambda x: x['eventtime_unix'], reverse=False)
+
+    # Fetch all user icons and sort by keyword
+    all_icons = get_all_icons(cur, verbose)
+    icons_by_keyword = {}
+    for icon in all_icons:
+        icons_by_keyword[icon['keywords']] = icon
+
+    # Fetch mood information and turn into a dictionary
+    all_moods = get_all_moods(cur, verbose)
+    moods_by_id = {}
+    for mood in all_moods:
+        moods_by_id[mood['id']] = mood
+
+    #pprint.pprint(all_icons_by_keyword)
+
+    #
+    # Entry pages, one per entry.
+    #
+
+    try:
+        os.mkdir("%s/entries" % (journal_name))
+    except OSError as e:
+        if e.errno == 17:   # Folder already exists
+            pass
+
+    for i in range(0, len(entries_by_date)):
+        previous_entry = None
+        if i > 0:
+            previous_entry = entries_by_date[i-1]
+        next_entry = None
+        if i < len(entries_by_date) - 1:
+            next_entry = entries_by_date[i+1]
+
+        entry = entries_by_date[i]
+
+        page = create_single_entry_page(
+                    journal_name=journal_name,
+                    entry=entry,
+                    comments=comments_grouped_by_entry[entry['itemid']],
+                    icons_by_keyword=icons_by_keyword,
+                    moods_by_id=moods_by_id,
+                    previous_entry=previous_entry,
+                    next_entry=next_entry
+                )
+        write_html("%s/entries/entry-%s.html" % (journal_name, entry['itemid']), page)
+
+    #
+    # History pages, with 20 entries each.
+    #
 
     # Create groups of 20 entries for the history pages
     groups_of_twenty = []
@@ -310,24 +479,31 @@ def ljdumptohtml(Username, journal_name, verbose=True):
     if len(current_group) > 0:
         groups_of_twenty.append(current_group)
 
-    # Fetch all user icons and sort by keyword
-    all_icons = get_all_icons(cur, verbose)
-    all_icons_by_keyword = {}
-    for icon in all_icons:
-        all_icons_by_keyword[icon['keywords']] = icon
+    try:
+        os.mkdir("%s/history" % (journal_name))
+    except OSError as e:
+        if e.errno == 17:   # Folder already exists
+            pass
 
-    #pprint.pprint(all_icons_by_keyword)
+    for i in range(0, len(groups_of_twenty)):
+        previous_count = 0
+        if i > 0:
+            previous_count = len(groups_of_twenty[i-1])
+        next_count = 0
+        if i < len(groups_of_twenty) - 1:
+            next_count = len(groups_of_twenty[i+1])
 
-    page = create_history_page(
-                journal_name=journal_name,
-                entries=groups_of_twenty[0],
-                comments_grouped_by_entry=comments_grouped_by_entry,
-                all_icons_by_keyword=all_icons_by_keyword,
-                page_number=1,
-                previous_page_entry_count=21,
-                next_page_entry_count=21
-            )
-    write_html("%s/page-%s.html" % (journal_name, 1), page)
+        page = create_history_page(
+                    journal_name=journal_name,
+                    entries=groups_of_twenty[i],
+                    comments_grouped_by_entry=comments_grouped_by_entry,
+                    icons_by_keyword=icons_by_keyword,
+                    moods_by_id=moods_by_id,
+                    page_number=i+1,
+                    previous_page_entry_count=previous_count,
+                    next_page_entry_count=next_count
+                )
+        write_html("%s/history/page-%s.html" % (journal_name, i+1), page)
 
     # Copy the default stylesheet into the journal folder
     source = "stylesheet.css"
