@@ -75,7 +75,159 @@ def create_template_page(journal_name, title_text):
     return (page, inner_d)
 
 
-def render_one_entry_container(journal_name, entry, comments, icons_by_keyword, moods_by_id, render_comments=False):
+def render_comment_and_subcomments_containers(comment, comments_by_id, comment_children, icons_by_keyword, depth=1):
+    # Pre-entry separator
+    comment_and_thread_container = ET.Element('div',
+        attrib={
+            'data-comment-depth': ("%s" % depth),
+            'class': ('comment-thread comment-depth-indent-desktop comment-depth-indent-mobile comment-depth-odd comment-depth-mod5-%s comment-depth-%s' % (depth, depth)),
+            'style': ('--comment-depth: %s;' % (depth))})
+
+    comment_container = ET.SubElement(comment_and_thread_container, 'div',
+        attrib={
+            'id': ("cmt%s" % comment['id']),
+            'class': "dwexpcomment",
+            'style': ('margin-left: %spx; margin-top: 5px;' % ((depth-1)*25))})
+    comment_wrapper = ET.SubElement(comment_container, 'div',
+        attrib={'class': "comment-wrapper comment-wrapper-odd visible full has-userpic no-subject"})
+
+    sep_before = ET.SubElement(comment_wrapper, 'div', attrib={'class': 'separator separator-before'})
+    sep_before_inner = ET.SubElement(sep_before, 'div', attrib={'class': 'inner'})
+
+    comment_main = ET.SubElement(comment_wrapper, 'div',
+        attrib={'class': 'comment',
+                'id': ("comment-cmt%s" % (comment['id'])) })
+
+    # Post-comment separator
+    sep_after = ET.SubElement(comment_wrapper, 'div', attrib={'class': 'separator separator-after'})
+    sep_after_inner = ET.SubElement(sep_after, 'div', attrib={'class': 'inner'})
+
+    # Middle wrapper for comment
+    comment_inner = ET.SubElement(comment_main, 'div', attrib={'class': 'inner'})
+
+    # Comment header area
+    comment_header = ET.SubElement(comment_inner, 'div', attrib={'class': 'header'})
+    comment_header_inner = ET.SubElement(comment_header, 'div', attrib={'class': 'inner'})
+
+    # Title of comment, with link to individual comment
+    title = comment['subject']
+    comment_title = ET.SubElement(comment_header_inner, 'h4', attrib={'class': 'comment-title'})
+    comment_title.text = title
+
+    # Datestamp
+    comment_date = ET.SubElement(comment_header_inner, 'span', attrib={'class': 'datetime'})
+    span_date = ET.SubElement(comment_date, 'span',
+        attrib={'class': 'comment-date-text'})
+    span_date.text = "Date: "
+    span_date_value = ET.SubElement(comment_date, 'span')
+    if comment['date_unix']:
+        d = datetime.fromtimestamp(comment['date_unix'])
+        span_date_value.text = html.escape(d.strftime("%b. %d, %Y %H:%M %p"))
+    else:
+        span_date_value.text = "(None)"
+
+    # Another comment inner wrapper
+    comment_div_contents = ET.SubElement(comment_inner, 'div', attrib={'class': 'contents'})
+    comment_div_contents_inner = ET.SubElement(comment_div_contents, 'div', attrib={'class': 'inner'})
+
+    # User icon (maybe custom, otherwise use the default)
+    div_userpic = ET.SubElement(comment_div_contents_inner, 'div', attrib={'class': 'userpic'})
+    # Currently no way to get userpic chosen for comment from XML-RPC.
+    #userpic_k = comment['props_picture_keyword'] or '*'
+    #if userpic_k in icons_by_keyword:
+    #    icon = icons_by_keyword[userpic_k]
+    #    img_userpic = ET.SubElement(div_userpic, 'img',
+    #        attrib={'src': ("../userpics/%s" % (icon['filename']))})
+
+    # Identify the poster (if it's not the owner)
+    span_poster = ET.SubElement(comment_div_contents_inner, 'span', attrib={'class': 'poster comment-poster'})
+    span_from = ET.SubElement(span_poster, 'span',
+        attrib={'class': 'comment-from-text'})
+    span_from.text = "From: "
+    span_user = ET.SubElement(span_poster, 'span',
+        attrib={'class': 'ljuser',
+                'style': 'white-space: nowrap;'})
+    img_user = ET.SubElement(span_user, 'img',
+        attrib={'src': '../user.png',
+                'style': 'vertical-align: text-bottom; border: 0; padding-right: 1px;',
+                'alt': '[personal profile]'})
+    if comment['user']:
+        a_user = ET.SubElement(span_user, 'a',
+            attrib={'href': ('https://www.dreamwidth.org/users/%s' % comment['user']),
+                    'style': 'font-weight:bold;'})
+        a_user.text = comment['user']
+    else:
+        a_user = ET.SubElement(span_user, 'span',
+            attrib={'style': 'font-weight:bold;'})
+        a_user.text = "(None)"
+
+    # This is an empty div that the comment body will be placed in later.
+    ET.SubElement(comment_div_contents_inner, 'div',
+            attrib={'class': 'comment-content',
+                    'id': ("comment-content-%s-insertion-point" % comment['id'])})
+
+    # comment footer area
+    comment_footer = ET.SubElement(comment_inner, 'div', attrib={'class': 'footer'})
+    comment_footer_inner = ET.SubElement(comment_footer, 'div', attrib={'class': 'inner'})
+
+    # There are no management links here because we can't get enough data from XML-RPC to
+    # reconstruct them.
+
+    if comment['id'] in comment_children:
+        for comment_id in comment_children[comment['id']]:
+            next_comment = comments_by_id[comment_id]
+            one_container = render_comment_and_subcomments_containers(
+                                comment=next_comment,
+                                comments_by_id=comments_by_id,
+                                comment_children=comment_children,
+                                icons_by_keyword=icons_by_keyword,
+                                depth=(depth+1)
+            )
+            comment_and_thread_container.append(one_container)
+
+    return comment_and_thread_container
+
+
+def render_comments_section(entry, comments, comments_by_id, icons_by_keyword):
+    wrapper = ET.Element('div',
+        attrib={'id': ("comments-wrapper-%s" % (entry['itemid'])) })
+    wrapper_inner = ET.SubElement(wrapper, 'div', attrib={'class': 'inner'})
+
+    # Sort by ID (creation order) rather than date, since some may have been edited
+    sorted_comments = sorted(comments, key=lambda x: x['id'], reverse=False)
+
+    # Get a list of top comments only
+    top_comments = []
+    for comment in sorted_comments:
+        if not comment['parentid']:
+            top_comments.append(comment)
+
+    # Create arrays of child comments for each comment ID.
+    # Since the source list was sorted, these will be too.
+    comment_children = {}
+    for comment in sorted_comments:
+        comment_children[comment['id']] = []
+    for comment in sorted_comments:
+        parent_id = comment['parentid']
+        if parent_id:
+            if not (parent_id in comment_children):
+                comment_children[parent_id] = []
+            comment_children[parent_id].append(comment['id'])
+
+    for comment in top_comments:
+        one_container = render_comment_and_subcomments_containers(
+                            comment=comment,
+                            comments_by_id=comments_by_id,
+                            comment_children=comment_children,
+                            icons_by_keyword=icons_by_keyword,
+                            depth=1
+        )
+        wrapper_inner.append(one_container)
+
+    return wrapper
+
+
+def render_one_entry_container(journal_name, entry, comments, icons_by_keyword, moods_by_id):
     wrapper = ET.Element('div',
         attrib={'class': 'entry-wrapper entry-wrapper-odd security-public restrictions-none journal-type-P has-userpic has-subject',
                 'id': ("entry-wrapper-%s" % (entry['itemid'])) })
@@ -214,7 +366,7 @@ def render_one_entry_container(journal_name, entry, comments, icons_by_keyword, 
             top_comments_count += 1
     if top_comments_count > 0:
         comments_li = ET.SubElement(management_ul, 'li', attrib={'class': 'entry-permalink first-item'})
-        comments_a = ET.SubElement(comments_li, 'a', attrib={'href': ("entries/%s.html" % entry['itemid'])})
+        comments_a = ET.SubElement(comments_li, 'a', attrib={'href': ("../entries/entry-%s.html" % entry['itemid'])})
         if top_comments_count > 1:
             comments_a.text = (u"%s comments" % top_comments_count)
         else:
@@ -249,10 +401,22 @@ def create_single_entry_page(journal_name, entry, comments, icons_by_keyword, mo
                 entry=entry,
                 comments=comments,
                 icons_by_keyword=icons_by_keyword,
-                moods_by_id=moods_by_id,
-                render_comments=False
+                moods_by_id=moods_by_id
     )
     content.append(wrapper)
+
+    # Create dictionary of comment ID to comment
+    comments_by_id = {}
+    for comment in comments:
+        comments_by_id[comment['id']] = comment
+
+    comments_container = render_comments_section(
+                entry=entry,
+                comments=comments,
+                comments_by_id=comments_by_id,
+                icons_by_keyword=icons_by_keyword,
+    )
+    content.append(comments_container)
 
     # Bottom navigation area (e.g. "previous" and "next" links)
     bottomnav_div = ET.SubElement(content, 'div', attrib={'class': 'navigation bottomnav' })
@@ -286,7 +450,7 @@ def create_single_entry_page(journal_name, entry, comments, icons_by_keyword, mo
 
     text_strings = []
     entry_body = entry['event']
-    entry_body = re.sub("\n", "<br />\n", entry_body)
+    entry_body = re.sub("(\r\n|\r|\n)", "<br />", entry_body)
     text_strings.append(html_split_on_insertion_points[0])
     text_strings.append(u'<div class="entry-content" id="entry-content-insertion-point">')
     text_strings.append(entry_body)
@@ -324,8 +488,7 @@ def create_history_page(journal_name, entries, comments_grouped_by_entry, icons_
                     entry=entry,
                     comments=comments_grouped_by_entry[entry['itemid']],
                     icons_by_keyword=icons_by_keyword,
-                    moods_by_id=moods_by_id,
-                    render_comments=False
+                    moods_by_id=moods_by_id
         )
         content.append(wrapper)
 
@@ -363,7 +526,7 @@ def create_history_page(journal_name, entries, comments_grouped_by_entry, icons_
     for i in range(0, len(entries)):
         e = entries[i]
         entry_body = e['event']
-        entry_body = re.sub("\n", "<br />\n", entry_body)
+        entry_body = re.sub("(\r\n|\r|\n)", "<br />", entry_body)
         text_strings.append(html_split_on_insertion_points[i])
         text_strings.append(u'<div class="entry-content" id="entry-content-insertion-point">')
         text_strings.append(entry_body)
@@ -403,19 +566,6 @@ def ljdumptohtml(Username, journal_name, verbose=True):
             comments_grouped_by_entry[e_id] = []
         comments_grouped_by_entry[e_id].append(comment)
 
-    # Create arrays of child comments for each comment ID
-    comment_children = {}
-    for comment in all_comments:
-        id = comment['id']
-        comment_children[id] = []
-    for comment in all_comments:
-        id = comment['id']
-        parent_id = comment['parentid']
-        if parent_id:
-            if not (parent_id in comment_children):
-                comment_children[parent_id] = []
-            comment_children[parent_id].append(id)
-
     # Sort all entries by UNIX timestamp, oldest to newest
     entries_by_date = sorted(all_entries, key=lambda x: x['eventtime_unix'], reverse=False)
 
@@ -436,6 +586,8 @@ def ljdumptohtml(Username, journal_name, verbose=True):
     #
     # Entry pages, one per entry.
     #
+
+    print("Rendering %s entry pages..." % (len(entries_by_date)))
 
     try:
         os.mkdir("%s/entries" % (journal_name))
@@ -479,6 +631,8 @@ def ljdumptohtml(Username, journal_name, verbose=True):
     if len(current_group) > 0:
         groups_of_twenty.append(current_group)
 
+    print("Rendering %s history pages..." % (len(groups_of_twenty)))
+
     try:
         os.mkdir("%s/history" % (journal_name))
     except OSError as e:
@@ -505,6 +659,8 @@ def ljdumptohtml(Username, journal_name, verbose=True):
                 )
         write_html("%s/history/page-%s.html" % (journal_name, i+1), page)
 
+    print("Copying support files...")
+
     # Copy the default stylesheet into the journal folder
     source = "stylesheet.css"
     dest = "%s/stylesheet.css" % (journal_name)
@@ -513,6 +669,8 @@ def ljdumptohtml(Username, journal_name, verbose=True):
     source = "user.png"
     dest = "%s/user.png" % (journal_name)
     shutil.copyfile(source, dest)
+
+    print("Done!")
 
 
 if __name__ == "__main__":
