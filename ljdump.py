@@ -33,6 +33,7 @@ from datetime import *
 import sqlite3
 from sqlite3 import Error
 from ljdumpsqlite import *
+from ljdumptohtml import ljdumptohtml
 
 
 MimeExtensions = {
@@ -103,7 +104,9 @@ def gettext(e):
     return e[0].firstChild.nodeValue
 
 
-def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at_fifty=False, use_sqlite=False):
+def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at_fifty=False, make_pages=False):
+    use_sqlite=True
+
     m = re.search("(.*)/interface/xmlrpc", Server)
     if m:
         Server = m.group(1)
@@ -528,13 +531,16 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
     if use_sqlite:
         finish_with_database(conn, cur)
 
+    if make_pages:
+        ljdumptohtml(Username, journal_short_name, verbose)
+
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="Livejournal archive utility")
     args.add_argument("--quiet", "-q", action='store_false', dest='verbose',
                       help="reduce log output")
-    args.add_argument("--nosql", "-s", action='store_false', dest='usesql',
-                      help="don't use the sql database, instead use the old multiple-file method of exporting")
+    args.add_argument("--nohtml", "-n", action='store_false', dest='makepages',
+                      help="don't process the journal data into HTML files.")
     args.add_argument("--fifty", "-f", action='store_true', dest='fifty',
                       help="stop after synchronizing 50 entries, and do not fetch anything else")
     args = args.parse_args()
@@ -573,5 +579,5 @@ if __name__ == "__main__":
             journals = [username]
 
     for journal in journals:
-        ljdump(server, username, password, journal, args.verbose, args.fifty, args.usesql)
+        ljdump(server, username, password, journal, args.verbose, args.fifty, args.makepages)
 # vim:ts=4 et:	

@@ -537,7 +537,7 @@ def create_history_page(journal_name, entries, comments_grouped_by_entry, icons_
     return ''.join(text_strings)
 
 
-def ljdumptohtml(Username, journal_name, verbose=True):
+def ljdumptohtml(username, journal_name, verbose=True):
     if verbose:
         print("Starting conversion for: %s" % journal_name)
 
