@@ -576,16 +576,16 @@ def get_all_moods(cur, verbose):
     """
     if verbose:
         print('Fetching all moods from database')
-    cur.execute("SELECT id, name, parentid FROM moods")
+    cur.execute("SELECT id, name, parent FROM moods")
     rows = cur.fetchall()
     moods = []
     for row in rows:
         mood = {
             "id": row[0],
             "name": row[1],
-            "parentid": row[2]
+            "parent": row[2]
         }
-        moods.append(icon)
+        moods.append(mood)
     return moods
 
 
@@ -640,7 +640,7 @@ def get_all_tags(cur, verbose):
             "security_level": row[5],
             "uses": row[6]
         }
-        tags.append(icon)
+        tags.append(tag)
     return tags
 
 
