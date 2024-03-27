@@ -163,8 +163,7 @@ def render_comment_and_subcomments_containers(comment, comments_by_id, comment_c
 
     # This is an empty div that the comment body will be placed in later.
     ET.SubElement(comment_div_contents_inner, 'div',
-            attrib={'class': 'comment-content',
-                    'id': ("comment-content-%s-insertion-point" % comment['id'])})
+            attrib={'id': ("comment-content-%s-insertion-point" % comment['id'])})
 
     # comment footer area
     comment_footer = ET.SubElement(comment_inner, 'div', attrib={'class': 'footer'})
@@ -446,18 +445,29 @@ def create_single_entry_page(journal_name, entry, comments, icons_by_keyword, mo
     # re-assemble the document.  It's hacky but it avoids the need to police the HTML
     # skills of thousands of users whose entires render fine in Dreamwidth.
     html_as_string = ET.tostring(page, encoding="utf-8", method="html").decode('utf-8')
-    html_split_on_insertion_points = html_as_string.split(u'<div class="entry-content" id="entry-content-insertion-point"></div>')
+    html_split_on_entry_body = html_as_string.split(u'<div class="entry-content" id="entry-content-insertion-point"></div>')
 
     text_strings = []
     entry_body = entry['event']
     entry_body = re.sub("(\r\n|\r|\n)", "<br />", entry_body)
-    text_strings.append(html_split_on_insertion_points[0])
+    text_strings.append(html_split_on_entry_body[0])
     text_strings.append(u'<div class="entry-content" id="entry-content-insertion-point">')
     text_strings.append(entry_body)
     text_strings.append(u'</div>')
-    # Add the tail end of the rendered HTML
-    text_strings.append(html_split_on_insertion_points[-1])
 
+    remainder = html_split_on_entry_body[-1]
+
+    # Use string substitution to insert comment bodies where they go.
+    # Same hacky tactic as above, but comments can contain just as much junk HTML as
+    # entries, so here we go.
+    for comment in comments:
+        marker = "<div id=\"comment-content-%s-insertion-point\"></div>"  % comment['id']
+
+        comment_body = ("<div class=\"comment-content\" id=\"comment-content-%s-insertion-point\">" % comment['id']) + comment['body'] + "</div>"
+
+        remainder = remainder.replace(marker, comment_body, 1)
+
+    text_strings.append(remainder)
     return ''.join(text_strings)
 
 
