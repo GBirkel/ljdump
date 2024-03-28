@@ -19,12 +19,11 @@ This script uses the XML-RPC API to communicate with Livejournal and its descend
 * Theme information for moods
 * The specific icons set by commenters in their comments
 
-As a result, it's nto possible to get the local HTML to look exactly like your online journal.
+As a result, it's not possible to get the local HTML to look exactly like your online journal.
 
 ## How to use ##
 
-
-__Note that to get the full archive of a very large journal, you may need to run the script a few times in a row, until it says there are no new changes.__
+__To get the full archive of a very large journal, you may need to run the script a few times in a row, until it says there are no new changes.__
 
 The simplest way to run this is to execute the ljdump.py script with Python. Depending on your OS, you may be able to double-click the ljdump.py script directly, or you may need to open a Terminal/Command Prompt window to run it. Either way, it will prompt you for your Livejournal username and password, then download all your journal entries, comments, and userpics.
 
