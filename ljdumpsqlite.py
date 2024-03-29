@@ -216,14 +216,15 @@ def create_tables_if_missing(conn, verbose):
         )""")
 
     # This table does not reflect any data taken directly from the journal site.
-    # It's used to resolve URLs for image in entries with their cached counterparts,
-    # when making the local HTML.
+    # It's used to resolve URLs for images in entries with their cached counterparts,
+    # when building the local HTML.
     conn.execute("""
         CREATE TABLE IF NOT EXISTS cached_images (
             id INTEGER PRIMARY KEY NOT NULL,
             url TEXT NOT NULL UNIQUE,
             filename TEXT,
             date_first_seen REAL,
+            date_last_attempted REAL,
             cached INTEGER NOT NULL
         )""")
 
@@ -748,7 +749,7 @@ def get_or_create_cached_image_record(cur, verbose, image_url, date_first_seen=N
     :param date_first_seen: timestamp of entry in which url was first seen (optional)
     """
     cur.execute("""
-        SELECT id, url, filename, date_first_seen, cached FROM cached_images
+        SELECT id, url, filename, date_first_seen, date_last_attempted, cached FROM cached_images
         WHERE url = :url""", {'url': image_url})
     row = cur.fetchone()
     if row:
@@ -759,7 +760,8 @@ def get_or_create_cached_image_record(cur, verbose, image_url, date_first_seen=N
             "url": row[1],
             "filename": row[2],
             "date_first_seen": row[3],
-            "cached": row[4]
+            "date_last_attempted": row[4],
+            "cached": row[5]
         }
         return image_url
     else:
@@ -773,6 +775,7 @@ def get_or_create_cached_image_record(cur, verbose, image_url, date_first_seen=N
             "url": image_url,
             "filename": None,
             "date_first_seen": date_or_none,
+            "date_last_attempted": None,
             "cached": 0
         }
         cur.execute("""
@@ -787,20 +790,36 @@ def get_or_create_cached_image_record(cur, verbose, image_url, date_first_seen=N
         return data
 
 
+def report_image_as_attempted(cur, verbose, image_id):
+    """ update the record for an image showing that a fetch was recently attempted but failed.
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :param image_id: id of image
+    """
+    current_date = datetime.utcnow().strftime('%s')
+    data = {
+        "id": image_id,
+        "date_last_attempted": current_date
+    }
+    cur.execute("UPDATE cached_images SET date_last_attempted = :date_last_attempted WHERE id = :id", data)
+
+
 def report_image_as_cached(cur, verbose, image_id, filename, date_first_seen=None):
     """ attempt to fetch an image cache record for the given url, or create and return one if none found.
     The date_first_seen parameter is not used to uniquely identify the record and can be None.
     :param cur: database cursor
     :param verbose: whether we are verbose logging
-    :param image_url: url of image
+    :param image_id: id of image
     :param date_first_seen: timestamp of entry in which url was first seen (optional)
     """
     if date_first_seen:
         date_or_none = date_first_seen.strftime('%s')
+    current_date = datetime.utcnow().strftime('%s')
     data = {
         "id": image_id,
         "filename": filename,
-        "date_first_seen": date_or_none
+        "date_first_seen": date_or_none,
+        "date_last_attempted": current_date
     }
     if verbose:
         print('Reporting image as cached: %s' % (filename))
@@ -808,6 +827,7 @@ def report_image_as_cached(cur, verbose, image_id, filename, date_first_seen=Non
         UPDATE cached_images SET
             filename = :filename,
             date_first_seen = :date_first_seen,
+            date_last_attempted = :date_last_attempted,
             cached = 1
         WHERE id = :id""", data)
 

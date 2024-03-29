@@ -47,7 +47,7 @@ def write_html(filename, html_as_string):
     f.write(html_as_string)
 
 
-def create_template_page(journal_name, title_text):
+def create_template_page(journal_short_name, title_text):
     page = ET.Element('html',
         attrib={'class': 'csstransforms csstransitions flexbox fontface generatedcontent no-touchevents no-touch'})
     head = ET.SubElement(page, 'head')
@@ -69,7 +69,7 @@ def create_template_page(journal_name, title_text):
     header_inner = ET.SubElement(header, 'div', attrib={'class': 'inner'})
     header_h_title = ET.SubElement(header_inner, 'h1', attrib={'id': 'title'})
     header_h_title_span = ET.SubElement(header_h_title, 'span')
-    header_h_title_span.text = journal_name
+    header_h_title_span.text = journal_short_name
     header_h_pagetitle = ET.SubElement(header_inner, 'h2', attrib={'id': 'pagetitle'})
     header_h_pagetitle_span = ET.SubElement(header_h_pagetitle, 'span')
     header_h_pagetitle_span.text = title_text
@@ -234,7 +234,7 @@ def render_comments_section(entry, comments, comments_by_id, icons_by_keyword):
     return wrapper
 
 
-def render_one_entry_container(journal_name, entry, comments, icons_by_keyword, moods_by_id):
+def render_one_entry_container(journal_short_name, entry, comments, icons_by_keyword, moods_by_id):
     wrapper = ET.Element('div',
         attrib={'class': 'entry-wrapper entry-wrapper-odd security-public restrictions-none journal-type-P has-userpic has-subject',
                 'id': ("entry-wrapper-%s" % (entry['itemid'])) })
@@ -294,9 +294,9 @@ def render_one_entry_container(journal_name, entry, comments, icons_by_keyword, 
                 'style': 'vertical-align: text-bottom; border: 0; padding-right: 1px;',
                 'alt': '[personal profile]'})
     a_user = ET.SubElement(span_user, 'a',
-        attrib={'href': ('https://www.dreamwidth.org/users/%s' % journal_name),
+        attrib={'href': ('https://www.dreamwidth.org/users/%s' % journal_short_name),
                 'style': 'font-weight:bold;'})
-    a_user.text = journal_name
+    a_user.text = journal_short_name
 
     # This is an empty div that the entry body will be placed in later.
     ET.SubElement(entry_div_contents_inner, 'div',
@@ -397,8 +397,8 @@ def resolve_cached_image_references(content, image_urls_to_filenames):
     return content
 
 
-def create_single_entry_page(journal_name, entry, comments, image_urls_to_filenames, icons_by_keyword, moods_by_id, previous_entry=None, next_entry=None):
-    page, content = create_template_page(journal_name, "%s entry %s" % (journal_name, entry['itemid']))
+def create_single_entry_page(journal_short_name, entry, comments, image_urls_to_filenames, icons_by_keyword, moods_by_id, previous_entry=None, next_entry=None):
+    page, content = create_template_page(journal_short_name, "%s entry %s" % (journal_short_name, entry['itemid']))
 
     # Top navigation area (e.g. "previous" and "next" links)
     topnav_div = ET.SubElement(content, 'div', attrib={'class': 'navigation topnav' })
@@ -419,7 +419,7 @@ def create_single_entry_page(journal_name, entry, comments, image_urls_to_filena
         topnav_a.text = u"Next Entry"
 
     wrapper = render_one_entry_container(
-                journal_name=journal_name,
+                journal_short_name=journal_short_name,
                 entry=entry,
                 comments=comments,
                 icons_by_keyword=icons_by_keyword,
@@ -495,8 +495,8 @@ def create_single_entry_page(journal_name, entry, comments, image_urls_to_filena
     return ''.join(text_strings)
 
 
-def create_history_page(journal_name, entries, comments_grouped_by_entry, image_urls_to_filenames, icons_by_keyword, moods_by_id, page_number, previous_page_entry_count=0, next_page_entry_count=0):
-    page, content = create_template_page(journal_name, "%s entries page %s" % (journal_name, page_number))
+def create_history_page(journal_short_name, entries, comments_grouped_by_entry, image_urls_to_filenames, icons_by_keyword, moods_by_id, page_number, previous_page_entry_count=0, next_page_entry_count=0):
+    page, content = create_template_page(journal_short_name, "%s entries page %s" % (journal_short_name, page_number))
 
     # Top navigation area (e.g. "previous" and "next" links)
     topnav_div = ET.SubElement(content, 'div', attrib={'class': 'navigation topnav' })
@@ -518,7 +518,7 @@ def create_history_page(journal_name, entries, comments_grouped_by_entry, image_
 
     for entry in entries:
         wrapper = render_one_entry_container(
-                    journal_name=journal_name,
+                    journal_short_name=journal_short_name,
                     entry=entry,
                     comments=comments_grouped_by_entry[entry['itemid']],
                     icons_by_keyword=icons_by_keyword,
@@ -572,7 +572,7 @@ def create_history_page(journal_name, entries, comments_grouped_by_entry, image_
     return ''.join(text_strings)
 
 
-def download_entry_image(img_url, journal_name, subfolder, url_id):
+def download_entry_image(img_url, journal_short_name, subfolder, url_id):
     try:
         image_req = urllib2.urlopen(img_url, timeout = 5)
         if image_req.headers.maintype != 'image':
@@ -596,18 +596,18 @@ def download_entry_image(img_url, journal_name, subfolder, url_id):
 
         # Make sure our cache folder and subfolder exist
         try:
-            os.mkdir("%s/images" % (journal_name))
+            os.mkdir("%s/images" % (journal_short_name))
         except OSError as e:
             if e.errno == 17:   # Folder already exists
                 pass
         try:
-            os.mkdir("%s/images/%s" % (journal_name, subfolder))
+            os.mkdir("%s/images/%s" % (journal_short_name, subfolder))
         except OSError as e:
             if e.errno == 17:   # Folder already exists
                 pass
 
         # Copy the file stream directly into the file and close both
-        pic_file = open("%s/images/%s" % (journal_name, filename), "wb")
+        pic_file = open("%s/images/%s" % (journal_short_name, filename), "wb")
         shutil.copyfileobj(image_req, pic_file)
         image_req.close()
         pic_file.close()
@@ -623,17 +623,17 @@ def download_entry_image(img_url, journal_name, subfolder, url_id):
         return (1, None)
 
 
-def ljdumptohtml(username, journal_name, verbose=True):
+def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
     if verbose:
-        print("Starting conversion for: %s" % journal_name)
+        print("Starting conversion for: %s" % journal_short_name)
 
     conn = None
     cur = None
 
     # create a database connection
-    conn = connect_to_local_journal_db("%s/journal.db" % journal_name, verbose)
+    conn = connect_to_local_journal_db("%s/journal.db" % journal_short_name, verbose)
     if not conn:
-        print("Database could not be opened for journal %s" % journal_name)
+        print("Database could not be opened for journal %s" % journal_short_name)
         os._exit(os.EX_IOERR)
     cur = conn.cursor()
 
@@ -667,40 +667,51 @@ def ljdumptohtml(username, journal_name, verbose=True):
     for mood in all_moods:
         moods_by_id[mood['id']] = mood
 
-    image_resolve_max = 100
-    entry_index = 0
+    #
+    # image caching
+    #
 
-    # Get a list of all the image tag URLs across all entries
-    all_image_urls_found = []
-    while image_resolve_max > 0:
-        if entry_index > len(entries_by_date):
-            image_resolve_max = 0
-        else:
-            entry = entries_by_date[entry_index]
-            entry_index += 1
-            e_id = entry['itemid']
-            entry_date = datetime.fromtimestamp(entry['eventtime_unix'])
-            entry_body = entry['event']
-            urls_found = re.findall(r'img[^\"\'()<>]*\ssrc\s?=\s?[\'\"](https?:/+[^\s\"\'()<>]+)[\'\"]', entry_body, flags=re.IGNORECASE)
-            all_image_urls_found.extend(urls_found)
-            subfolder = entry_date.strftime("%Y-%m")
-            for image_url in urls_found:
-                cached_image = get_or_create_cached_image_record(cur, verbose, image_url, entry_date)
-                # If we already have an image cached for this URL, skip it.
-                if cached_image['cached'] == False:
-                    image_id = cached_image['id']
-                    cache_result = 0
-                    img_filename = None
-                    (cache_result, img_filename) = download_entry_image(image_url, journal_name, subfolder, image_id)
-                    if (cache_result == 0) and (img_filename is not None):
-                        report_image_as_cached(cur, verbose, image_id, img_filename, entry_date)
-                        image_resolve_max -= 1
+    if cache_images:
+        image_resolve_max = 200
+        entry_index = 0
+        while image_resolve_max > 0:
+            if entry_index >= len(entries_by_date):
+                image_resolve_max = 0
+            else:
+                entry = entries_by_date[entry_index]
+                entry_index += 1
+                e_id = entry['itemid']
+                entry_date = datetime.fromtimestamp(entry['eventtime_unix'])
+                entry_body = entry['event']
+                urls_found = re.findall(r'img[^\"\'()<>]*\ssrc\s?=\s?[\'\"](https?:/+[^\s\"\'()<>]+)[\'\"]', entry_body, flags=re.IGNORECASE)
+                subfolder = entry_date.strftime("%Y-%m")
+                for image_url in urls_found:
+                    cached_image = get_or_create_cached_image_record(cur, verbose, image_url, entry_date)
+                    try_cache = True
+                    # If a fetch was already attempted less than one day ago, don't try again
+                    if cached_image['date_last_attempted']:
+                        current_date = int(datetime.utcnow().strftime('%s'))
+                        if int(current_date) - int(cached_image['date_last_attempted']) < 86400:
+                            try_cache = False
+                    # If we already have an image cached for this URL, skip it.
+                    if (cached_image['cached'] == False) and try_cache:
+                        image_id = cached_image['id']
+                        cache_result = 0
+                        img_filename = None
+                        (cache_result, img_filename) = download_entry_image(image_url, journal_short_name, subfolder, image_id)
+                        if (cache_result == 0) and (img_filename is not None):
+                            report_image_as_cached(cur, verbose, image_id, img_filename, entry_date)
+                            image_resolve_max -= 1
+                        else:
+                            report_image_as_attempted(cur, verbose, image_id)
 
     all_cached = get_all_successfully_cached_image_records(cur, verbose)
     image_urls_to_filenames = {}
     for i in all_cached:
         image_urls_to_filenames[i['url']] = i['filename']
 
+    #pprint.pprint(image_urls_to_filenames)
+    #os._exit(os.EX_OK)
 
     #
     # Entry pages, one per entry.
@@ -709,7 +720,7 @@ def ljdumptohtml(username, journal_name, verbose=True):
     print("Rendering %s entry pages..." % (len(entries_by_date)))
 
     try:
-        os.mkdir("%s/entries" % (journal_name))
+        os.mkdir("%s/entries" % (journal_short_name))
     except OSError as e:
         if e.errno == 17:   # Folder already exists
             pass
@@ -725,7 +736,7 @@ def ljdumptohtml(username, journal_name, verbose=True):
         entry = entries_by_date[i]
 
         page = create_single_entry_page(
-                    journal_name=journal_name,
+                    journal_short_name=journal_short_name,
                     entry=entry,
                     comments=comments_grouped_by_entry[entry['itemid']],
                     image_urls_to_filenames=image_urls_to_filenames,
@@ -734,7 +745,7 @@ def ljdumptohtml(username, journal_name, verbose=True):
                     previous_entry=previous_entry,
                     next_entry=next_entry
                 )
-        write_html("%s/entries/entry-%s.html" % (journal_name, entry['itemid']), page)
+        write_html("%s/entries/entry-%s.html" % (journal_short_name, entry['itemid']), page)
 
     #
     # History pages, with 20 entries each.
@@ -754,7 +765,7 @@ def ljdumptohtml(username, journal_name, verbose=True):
     print("Rendering %s history pages..." % (len(groups_of_twenty)))
 
     try:
-        os.mkdir("%s/history" % (journal_name))
+        os.mkdir("%s/history" % (journal_short_name))
     except OSError as e:
         if e.errno == 17:   # Folder already exists
             pass
@@ -768,7 +779,7 @@ def ljdumptohtml(username, journal_name, verbose=True):
             next_count = len(groups_of_twenty[i+1])
 
         page = create_history_page(
-                    journal_name=journal_name,
+                    journal_short_name=journal_short_name,
                     entries=groups_of_twenty[i],
                     comments_grouped_by_entry=comments_grouped_by_entry,
                     image_urls_to_filenames=image_urls_to_filenames,
@@ -778,17 +789,17 @@ def ljdumptohtml(username, journal_name, verbose=True):
                     previous_page_entry_count=previous_count,
                     next_page_entry_count=next_count
                 )
-        write_html("%s/history/page-%s.html" % (journal_name, i+1), page)
+        write_html("%s/history/page-%s.html" % (journal_short_name, i+1), page)
 
     print("Copying support files...")
 
     # Copy the default stylesheet into the journal folder
     source = "stylesheet.css"
-    dest = "%s/stylesheet.css" % (journal_name)
+    dest = "%s/stylesheet.css" % (journal_short_name)
     shutil.copyfile(source, dest)
     # Copy a generic user icon into the journal folder
     source = "user.png"
-    dest = "%s/user.png" % (journal_name)
+    dest = "%s/user.png" % (journal_short_name)
     shutil.copyfile(source, dest)
 
     finish_with_database(conn, cur)
@@ -800,6 +811,8 @@ if __name__ == "__main__":
     args = argparse.ArgumentParser(description="Livejournal archive to html utility")
     args.add_argument("--quiet", "-q", action='store_false', dest='verbose',
                       help="reduce log output")
+    args.add_argument("--cache_images", "-i", action='store_true', dest='cache_images',
+                      help="build a cache of images referenced in entries")
     args = args.parse_args()
     if os.access("ljdump.config", os.F_OK):
         config = xml.dom.minidom.parse("ljdump.config")
@@ -825,4 +838,9 @@ if __name__ == "__main__":
             journals = [username]
 
     for journal in journals:
-        ljdumptohtml(username, journal, args.verbose)
+        ljdumptohtml(
+            username=username,
+            journal_short_name=journal,
+            verbose=args.verbose,
+            cache_images=args.cache_images
+        )

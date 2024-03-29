@@ -58,10 +58,10 @@ def flatresponse(response):
     return r
 
 
-def getljsession(server, username, password):
+def getljsession(journal_server, username, password):
     """Log in with password and get session cookie."""
     qs = "mode=sessiongenerate&user=%s&auth_method=clear&password=%s" % (urllib.quote(username), urllib.quote(password))
-    r = urllib2.urlopen(server+"/interface/flat", qs)
+    r = urllib2.urlopen(journal_server+"/interface/flat", qs)
     response = flatresponse(r)
     r.close()
     return response['ljsession']
@@ -73,12 +73,12 @@ def gettext(e):
     return e[0].firstChild.nodeValue
 
 
-def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at_fifty=False, make_pages=False):
+def ljdump(journal_server, username, password, journal_short_name, verbose=True, stop_at_fifty=False, make_pages=False, cache_images=False):
 
-    m = re.search("(.*)/interface/xmlrpc", Server)
+    m = re.search("(.*)/interface/xmlrpc", journal_server)
     if m:
-        Server = m.group(1)
-    if Username != journal_short_name:
+        journal_server = m.group(1)
+    if username != journal_short_name:
         authas = "&authas=%s" % journal_short_name
     else:
         authas = ""
@@ -91,13 +91,13 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
     except:
         pass
 
-    ljsession = getljsession(Server, Username, Password)
+    ljsession = getljsession(journal_server, username, password)
 
-    server = xmlrpclib.ServerProxy(Server+"/interface/xmlrpc")
+    server = xmlrpclib.ServerProxy(journal_server+"/interface/xmlrpc")
 
     def authed(params):
         """Transform API call params to include authorization."""
-        return dict(auth_method='clear', username=Username, password=Password, **params)
+        return dict(auth_method='clear', username=username, password=password, **params)
 
     newentries = 0
     newcomments = 0
@@ -224,7 +224,7 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
             try:
                 r = urllib2.urlopen(
                         urllib2.Request(
-                            Server+"/export_comments.bml?get=comment_meta&startid=%d%s" % (maxid+1, authas),
+                            journal_server+"/export_comments.bml?get=comment_meta&startid=%d%s" % (maxid+1, authas),
                             headers = {'Cookie': "ljsession="+ljsession}
                        )
                     )
@@ -290,7 +290,7 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
             try:
                 r = urllib2.urlopen(
                     urllib2.Request(
-                        Server+"/export_comments.bml?get=comment_body&startid=%d%s" % (commentid, authas),
+                        journal_server+"/export_comments.bml?get=comment_body&startid=%d%s" % (commentid, authas),
                         headers = {'Cookie': "ljsession="+ljsession}
                     )
                 )
@@ -384,7 +384,7 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
             'userid': r['userid']
         })
 
-    if Username == journal_short_name:
+    if username == journal_short_name:
         try:
             os.mkdir("%s/userpics" % (journal_short_name))
         except OSError as e:
@@ -427,8 +427,12 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
     finish_with_database(conn, cur)
 
     if make_pages:
-        ljdumptohtml(Username, journal_short_name, verbose)
-
+        ljdumptohtml(
+            usename=username,
+            journal_short_name=journal_short_name,
+            verbose=verbose,
+            cache_images=cache_images
+        )
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="Livejournal archive utility")
@@ -438,10 +442,12 @@ if __name__ == "__main__":
                       help="don't process the journal data into HTML files.")
     args.add_argument("--fifty", "-f", action='store_true', dest='fifty',
                       help="stop after synchronizing 50 entries, and do not fetch anything else")
+    args.add_argument("--cache_images", "-i", action='store_true', dest='cache_images',
+                      help="build a cache of images referenced in entries")
     args = args.parse_args()
     if os.access("ljdump.config", os.F_OK):
         config = xml.dom.minidom.parse("ljdump.config")
-        server = config.documentElement.getElementsByTagName("server")[0].childNodes[0].data
+        journal_server = config.documentElement.getElementsByTagName("server")[0].childNodes[0].data
         username = config.documentElement.getElementsByTagName("username")[0].childNodes[0].data
         password_els = config.documentElement.getElementsByTagName("password")
         if len(password_els) > 0:
@@ -455,7 +461,7 @@ if __name__ == "__main__":
         print("ljdump - livejournal archiver")
         print
         default_server = "https://livejournal.com"
-        server = raw_input("Alternative server to use (e.g. 'https://www.dreamwidth.org'), or hit return for '%s': " % default_server) or default_server
+        journal_server = raw_input("Alternative server to use (e.g. 'https://www.dreamwidth.org'), or hit return for '%s': " % default_server) or default_server
         print
         print("Enter your Livejournal (or Dreamwidth, etc) username and password.")
         print
@@ -474,5 +480,5 @@ if __name__ == "__main__":
             journals = [username]
 
     for journal in journals:
-        ljdump(server, username, password, journal, args.verbose, args.fifty, args.makepages)
+        ljdump(journal_server, username, password, journal, args.verbose, args.fifty, args.makepages, args.cache_images)
 # vim:ts=4 et:	
