@@ -428,7 +428,7 @@ def ljdump(journal_server, username, password, journal_short_name, verbose=True,
 
     if make_pages:
         ljdumptohtml(
-            usename=username,
+            username=username,
             journal_short_name=journal_short_name,
             verbose=verbose,
             cache_images=cache_images
