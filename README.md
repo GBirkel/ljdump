@@ -11,6 +11,18 @@ Page structure is as close as possible to what Dreamwidth renders, so you can dr
 
 The script keeps track of where it left off the last time it was run, so the next time you run it, it will only fetch the entries and comments that have changed.
 
+<img src="treasure.jpg" style="max-width:25%;float:right;padding-left:0.7em;">
+
+### An image cache ###
+
+I put a lot of my photos and pixel art in my journal, and an archive would be kind of lame without them.  That's why this script can also attempt to store local copies of the images embedded in journal entries.  It organizes them by month in an images folder next to all the HTML.
+
+This is an optional step, and it's off by default.  To run it you need to use the `--cache_images` argument when you invoke the script.
+
+Every time you run it, it will attempt to cache 200 more images, going from oldest to newest.  It will skip over images it's already tried and failed to fetch, until 24 hours have gone by, then it will try those images once again.
+
+The image links in your entries are left unchanged in the database.  They're swapped for local links only in the generated HTML pages.
+
 ### Limitations ###
 
 This script uses the XML-RPC API to communicate with Livejournal and its descendents.  There is some information that is just not available using this protocol, such as:
@@ -19,13 +31,17 @@ This script uses the XML-RPC API to communicate with Livejournal and its descend
 * Theme information for moods
 * The specific icons set by commenters in their comments
 
-As a result, it's not possible to get the local HTML to look exactly like your online journal.
+So, it's not possible to get the local HTML to look exactly like your online journal.
 
 ## How to use ##
 
 __To get the full archive of a very large journal, you may need to run the script a few times in a row, until it says there are no new changes.__
 
-The simplest way to run this is to execute the ljdump.py script with Python. Depending on your OS, you may be able to double-click the ljdump.py script directly, or you may need to open a Terminal/Command Prompt window to run it. Either way, it will prompt you for your Livejournal username and password, then download all your journal entries, comments, and userpics.
+The simplest way to run this is to execute the **ljdump.py** script with Python, for example:
+
+`python ljdump.py --cache_images`
+
+Depending on your OS, you may be able to double-click the script directly, or you may need to open a Terminal/Command Prompt window to run it. Either way, it will prompt you for your Livejournal username and password, then download all your journal entries, comments, and userpics.
 
 You may optionally download entries from a different journal (a community) where you are a member. If you are a community maintainer, you can also download comments from the community.
 
@@ -67,4 +83,16 @@ By defualt, this script constructs HTML pages after saving everything to the SQL
 
 Only fetch 50 of the entries that are new since the last sync, then stop.  Useful for testing the script output.
 
-A Livejournal [community](https://ljdump.livejournal.com) was set up for questions or comments, on the original version of this code, but it has not seen attention for years.  Say [hello to me here](https://garote.dreamwidth.org/330489.html) if you have feedback.
+`--cache_images`
+
+Activates the image caching.  The script will attempt to cache 200 images at a time.  If it fails to cache an image it will skip it for 24 hours, even if the script is run again during that time.
+
+Note that you can run the script that generates the HTML by itself, skipping over the synchronization process.  Running it repeatedly will let you cache lots of images without bothering the journal servers:
+
+`python ljdumptohtml.py --cache_images`
+
+## Have fun!  ##
+
+You should know that there's no warranty here, and no guarantee that Dreamwidth or Livejournal won't shut off their XML-RPC protocol at some point.  Try not to aggravate them by downloading your journal a thousand times, mmmkay?
+
+A Livejournal [community](https://ljdump.livejournal.com) was set up for questions or comments on the original version of this script back in 2009, but it has not seen attention for years.  Say [hello to me here](https://garote.dreamwidth.org/330489.html) if you have feedback.
