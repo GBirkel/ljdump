@@ -71,17 +71,17 @@ The configuration settings are:
 
 ### Command line options ###
 
-  --quiet
+`--quiet`
 
-Makes the script print far less status information to the console as it runs.
+Makes the script print a lot less status information to the console as it runs.
 
-  --nohtml
+`--nohtml`
 
 By defualt, this script constructs HTML pages after saving everything to the SQLite database.  This flag skips the HTML.
 
-  --fifty
+`--fifty`
 
-Only fetch 50 of the entries that are new since the last sync, then stop.  Useful for testing the script output.
+Only fetch 50 of the entries that are new since the last sync, then stop.  Useful for testing the script output before you commit to downloading your whole journal.
 
 `--cache_images`
 
