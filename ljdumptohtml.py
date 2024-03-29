@@ -130,7 +130,7 @@ def render_comment_and_subcomments_containers(comment, comments_by_id, comment_c
     span_date_value = ET.SubElement(comment_date, 'span')
     if comment['date_unix']:
         d = datetime.fromtimestamp(comment['date_unix'])
-        span_date_value.text = html.escape(d.strftime("%b. %d, %Y %H:%M %p"))
+        span_date_value.text = html.escape(d.strftime("%b. %-d, %Y %-I:%M %p"))
     else:
         span_date_value.text = "(None)"
 
@@ -234,7 +234,7 @@ def render_comments_section(entry, comments, comments_by_id, icons_by_keyword):
     return wrapper
 
 
-def render_one_entry_container(journal_short_name, entry, comments, icons_by_keyword, moods_by_id):
+def render_one_entry_container(journal_short_name, entry, comments_count, icons_by_keyword, moods_by_id):
     wrapper = ET.Element('div',
         attrib={'class': 'entry-wrapper entry-wrapper-odd security-public restrictions-none journal-type-P has-userpic has-subject',
                 'id': ("entry-wrapper-%s" % (entry['itemid'])) })
@@ -269,7 +269,7 @@ def render_one_entry_container(journal_short_name, entry, comments, icons_by_key
     # Datestamp
     entry_date = ET.SubElement(entry_header_inner, 'span', attrib={'class': 'datetime'})
     d = datetime.fromtimestamp(entry['eventtime_unix'])
-    entry_date.text = html.escape(d.strftime("%b. %d, %Y %H:%M %p"))
+    entry_date.text = html.escape(d.strftime("%b. %-d, %Y %-I:%M %p"))
 
     # Another entry inner wrapper
     entry_div = ET.SubElement(entry_inner, 'div')
@@ -367,15 +367,11 @@ def render_one_entry_container(journal_short_name, entry, comments, icons_by_key
     permalink_a = ET.SubElement(permalink_li, 'a', attrib={'href': (entry['url'])})
     permalink_a.text = u"Original"
     # Comments link
-    top_comments_count = 0
-    for c in comments:
-        if not c['parentid']:
-            top_comments_count += 1
-    if top_comments_count > 0:
+    if comments_count > 0:
         comments_li = ET.SubElement(management_ul, 'li', attrib={'class': 'entry-permalink first-item'})
         comments_a = ET.SubElement(comments_li, 'a', attrib={'href': ("../entries/entry-%s.html" % entry['itemid'])})
-        if top_comments_count > 1:
-            comments_a.text = (u"%s comments" % top_comments_count)
+        if comments_count > 1:
+            comments_a.text = (u"%s comments" % comments_count)
         else:
             comments_a.text = u"1 comment"
 
@@ -421,7 +417,7 @@ def create_single_entry_page(journal_short_name, entry, comments, image_urls_to_
     wrapper = render_one_entry_container(
                 journal_short_name=journal_short_name,
                 entry=entry,
-                comments=comments,
+                comments_count=len(comments),
                 icons_by_keyword=icons_by_keyword,
                 moods_by_id=moods_by_id
     )
@@ -486,10 +482,10 @@ def create_single_entry_page(journal_short_name, entry, comments, image_urls_to_
     # entries, so here we go.
     for comment in comments:
         marker = "<div id=\"comment-content-%s-insertion-point\"></div>"  % comment['id']
+        comment_body = re.sub("(\r\n|\r|\n)", "<br />", comment['body'])
+        wrapped_comment_body = ("<div class=\"comment-content\" id=\"comment-content-%s-insertion-point\">" % comment['id']) + comment_body + "</div>"
 
-        comment_body = ("<div class=\"comment-content\" id=\"comment-content-%s-insertion-point\">" % comment['id']) + comment['body'] + "</div>"
-
-        remainder = remainder.replace(marker, comment_body, 1)
+        remainder = remainder.replace(marker, wrapped_comment_body, 1)
 
     text_strings.append(remainder)
     return ''.join(text_strings)
@@ -520,7 +516,7 @@ def create_history_page(journal_short_name, entries, comments_grouped_by_entry, 
         wrapper = render_one_entry_container(
                     journal_short_name=journal_short_name,
                     entry=entry,
-                    comments=comments_grouped_by_entry[entry['itemid']],
+                    comments_count=len(comments_grouped_by_entry[entry['itemid']]),
                     icons_by_keyword=icons_by_keyword,
                     moods_by_id=moods_by_id
         )
@@ -570,6 +566,43 @@ def create_history_page(journal_short_name, entries, comments_grouped_by_entry, 
     text_strings.append(html_split_on_insertion_points[-1])
 
     return ''.join(text_strings)
+
+
+def create_table_of_contents_page(journal_short_name, entry_count, entries_table_of_contents, history_page_table_of_contents):
+    page, content = create_template_page(journal_short_name, "%s archive" % journal_short_name)
+
+    toc_banner = ET.SubElement(content, 'h1')
+    toc_banner.text = 'Number of entries: %s' % entry_count
+
+    history_toc_banner = ET.SubElement(content, 'h2')
+    history_toc_banner.text = 'History Pages'
+
+    history_ul = ET.SubElement(content, 'ul')
+
+    for toc in history_page_table_of_contents:
+        history_li = ET.SubElement(history_ul, 'li')
+        history_a = ET.SubElement(history_li, 'a', attrib={ 'href': toc['filename'] })
+        d_from = html.escape(toc['from'].strftime("%Y %b. %-d"))
+        d_to = html.escape(toc['to'].strftime("%Y %b. %-d"))
+        history_a.text = "%s to %s" % (d_from, d_to)
+
+    entries_toc_banner = ET.SubElement(content, 'h2')
+    entries_toc_banner.text = 'Individual Entries By Month'
+
+    for toc_group in entries_table_of_contents:
+        month_banner = ET.SubElement(content, 'h4')
+        month_banner.text = html.escape(toc_group[0]['date'].strftime("%Y %B"))
+        month_ul = ET.SubElement(content, 'ul')
+
+        for toc in toc_group:
+            month_li = ET.SubElement(month_ul, 'li')
+            month_a = ET.SubElement(month_li, 'a', attrib={ 'href': toc['filename'] })
+            e_date = html.escape(toc['date'].strftime("%b. %-d, %-I:%M %p"))
+            month_a.text = "%s:" % e_date
+            month_a.tail = " %s" % toc['subject']
+
+    html_as_string = ET.tostring(page, encoding="utf-8", method="html").decode('utf-8')
+    return html_as_string
 
 
 def download_entry_image(img_url, journal_short_name, subfolder, url_id):
@@ -725,15 +758,38 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
         if e.errno == 17:   # Folder already exists
             pass
 
+    entries_table_of_contents = []
+    current_month_group = []
+    current_year_and_month_str = None
+
     for i in range(0, len(entries_by_date)):
+        entry = entries_by_date[i]
+        entry_date = datetime.fromtimestamp(entry['eventtime_unix'])
+        entry_year_and_month_str = entry_date.strftime("%Y-%m")
+
+        # Used for building a table of contents later
+        toc = {
+            'date': entry_date,
+            'subject': entry['subject'],
+            'filename': ("entries/entry-%s.html" % entry['itemid'])
+        }
         previous_entry = None
         if i > 0:
             previous_entry = entries_by_date[i-1]
+            # If the month and year for this entry do not match the
+            # month and year for the current group of entries, start a new one.
+            if entry_year_and_month_str != current_year_and_month_str:
+                entries_table_of_contents.append(current_month_group)
+                current_month_group = []
+                current_year_and_month_str = entry_year_and_month_str
+        else:
+            # If we're on the first entry, skip the month/year comparison
+            current_year_and_month_str = entry_year_and_month_str
+        current_month_group.append(toc)
+    
         next_entry = None
         if i < len(entries_by_date) - 1:
             next_entry = entries_by_date[i+1]
-
-        entry = entries_by_date[i]
 
         page = create_single_entry_page(
                     journal_short_name=journal_short_name,
@@ -746,6 +802,8 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
                     next_entry=next_entry
                 )
         write_html("%s/entries/entry-%s.html" % (journal_short_name, entry['itemid']), page)
+
+    entries_table_of_contents.append(current_month_group)
 
     #
     # History pages, with 20 entries each.
@@ -770,6 +828,7 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
         if e.errno == 17:   # Folder already exists
             pass
 
+    history_page_table_of_contents = []
     for i in range(0, len(groups_of_twenty)):
         previous_count = 0
         if i > 0:
@@ -778,9 +837,10 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
         if i < len(groups_of_twenty) - 1:
             next_count = len(groups_of_twenty[i+1])
 
+        current_group = groups_of_twenty[i]
         page = create_history_page(
                     journal_short_name=journal_short_name,
-                    entries=groups_of_twenty[i],
+                    entries=current_group,
                     comments_grouped_by_entry=comments_grouped_by_entry,
                     image_urls_to_filenames=image_urls_to_filenames,
                     icons_by_keyword=icons_by_keyword,
@@ -790,6 +850,26 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
                     next_page_entry_count=next_count
                 )
         write_html("%s/history/page-%s.html" % (journal_short_name, i+1), page)
+
+        # Used for building a table of contents later
+        toc = {
+            'from': datetime.fromtimestamp(current_group[0]['eventtime_unix']),
+            'to': datetime.fromtimestamp(current_group[-1]['eventtime_unix']),
+            'filename': "history/page-%s.html" % (i+1)
+        }
+        history_page_table_of_contents.append(toc)
+
+    #
+    # Table of contents page
+    #
+
+    page = create_table_of_contents_page(
+            journal_short_name=journal_short_name,
+            entry_count=len(entries_by_date),
+            entries_table_of_contents=entries_table_of_contents,
+            history_page_table_of_contents=history_page_table_of_contents,
+        )
+    write_html("%s/index.html" % journal_short_name, page)
 
     print("Copying support files...")
 
