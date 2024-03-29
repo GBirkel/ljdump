@@ -349,14 +349,14 @@ def render_one_entry_container(journal_short_name, entry, comments_count, icons_
                 one_tag = tags_split[i]
                 tag_li = ET.SubElement(tags_ul, 'li')
                 tag_a = ET.SubElement(tag_li, 'a',
-                    attrib={'href': ("tags/%s.html" % one_tag),
+                    attrib={'href': ("../index.html#%s" % one_tag),
                             'rel': 'tag'})
                 tag_a.text = one_tag
                 tag_a.tail = u", "
         one_tag = tags_split[-1]
         tag_li = ET.SubElement(tags_ul, 'li')
         tag_a = ET.SubElement(tag_li, 'a',
-            attrib={'href': ("tags/%s.html" % one_tag),
+            attrib={'href': ("../index.html#%s" % one_tag),
                     'rel': 'tag'})
         tag_a.text = one_tag
 
@@ -568,7 +568,7 @@ def create_history_page(journal_short_name, entries, comments_grouped_by_entry, 
     return ''.join(text_strings)
 
 
-def create_table_of_contents_page(journal_short_name, entry_count, entries_table_of_contents, history_page_table_of_contents):
+def create_table_of_contents_page(journal_short_name, entry_count, entries_table_of_contents, history_page_table_of_contents, tags_encountered, entries_by_tag):
     page, content = create_template_page(journal_short_name, "%s archive" % journal_short_name)
 
     toc_banner = ET.SubElement(content, 'h1')
@@ -586,8 +586,24 @@ def create_table_of_contents_page(journal_short_name, entry_count, entries_table
         d_to = html.escape(toc['to'].strftime("%Y %b. %-d"))
         history_a.text = "%s to %s" % (d_from, d_to)
 
+    tag_toc_banner = ET.SubElement(content, 'h2')
+    tag_toc_banner.text = 'Entries By Tag'
+
+    for tag in tags_encountered:
+        tag_banner_a = ET.SubElement(content, 'a', attrib={ 'name': tag, 'id': tag })
+        tag_banner = ET.SubElement(tag_banner_a, 'h3')
+        tag_banner.text = html.escape(tag)
+        tag_ul = ET.SubElement(content, 'ul')
+
+        for toc in entries_by_tag[tag]:
+            tag_li = ET.SubElement(tag_ul, 'li')
+            tag_a = ET.SubElement(tag_li, 'a', attrib={ 'href': toc['filename'] })
+            e_date = html.escape(toc['date'].strftime("%Y %b. %-d, %-I:%M %p"))
+            tag_a.text = "%s:" % e_date
+            tag_a.tail = " %s" % toc['subject']
+
     entries_toc_banner = ET.SubElement(content, 'h2')
-    entries_toc_banner.text = 'Individual Entries By Month'
+    entries_toc_banner.text = 'All Entries By Month'
 
     for toc_group in entries_table_of_contents:
         month_banner = ET.SubElement(content, 'h4')
@@ -860,6 +876,30 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
         history_page_table_of_contents.append(toc)
 
     #
+    # Organizing by tag
+    #
+
+    entries_by_tag = {}
+    tags_encountered = []
+    for entry in entries_by_date:
+        taglist = entry['props_taglist']
+        if taglist is not None:
+            # Used for building a table of contents later
+            toc = {
+                'date': datetime.fromtimestamp(entry['eventtime_unix']),
+                'subject': entry['subject'],
+                'filename': ("entries/entry-%s.html" % entry['itemid'])
+            }
+            tags_split = taglist.split(', ')
+            for tag in tags_split:
+                if not (tag in entries_by_tag):
+                    tags_encountered.append(tag)
+                    entries_by_tag[tag] = []
+                entries_by_tag[tag].append(toc)
+
+    tags_encountered = sorted(tags_encountered)
+
+    #
     # Table of contents page
     #
 
@@ -868,6 +908,8 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
             entry_count=len(entries_by_date),
             entries_table_of_contents=entries_table_of_contents,
             history_page_table_of_contents=history_page_table_of_contents,
+            tags_encountered=tags_encountered,
+            entries_by_tag=entries_by_tag,
         )
     write_html("%s/index.html" % journal_short_name, page)
 
