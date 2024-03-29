@@ -386,12 +386,12 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
 
     if Username == journal_short_name:
         try:
-            os.mkdir("%s/userpics" % (Username))
+            os.mkdir("%s/userpics" % (journal_short_name))
         except OSError as e:
             if e.errno == 17:   # Folder already exists
                 pass
         if verbose:
-            print("Fetching userpics for: %s" % Username)
+            print("Fetching userpics for: %s" % journal_short_name)
 
         for p in userpics:
             pic = urllib2.urlopen(userpics[p])
@@ -399,11 +399,11 @@ def ljdump(Server, Username, Password, journal_short_name, verbose=True, stop_at
             picfn = re.sub(r'[*?\\/:<> "|]', "_", p)
             try:
                 picfn = codecs.utf_8_decode(picfn)[0]
-                picf = open("%s/userpics/%s%s" % (Username, picfn, ext), "wb")
+                picf = open("%s/userpics/%s%s" % (journal_short_name, picfn, ext), "wb")
             except:
                 # for installations where the above utf_8_decode doesn't work
                 picfn = "".join([ord(x) < 128 and x or "_" for x in picfn])
-                picf = open("%s/userpics/%s%s" % (Username, picfn, ext), "wb")
+                picf = open("%s/userpics/%s%s" % (journal_short_name, picfn, ext), "wb")
             shutil.copyfileobj(pic, picf)
             pic.close()
             picf.close()
