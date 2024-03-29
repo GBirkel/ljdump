@@ -215,6 +215,18 @@ def create_tables_if_missing(conn, verbose):
             url TEXT
         )""")
 
+    # This table does not reflect any data taken directly from the journal site.
+    # It's used to resolve URLs for image in entries with their cached counterparts,
+    # when making the local HTML.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS cached_images (
+            id INTEGER PRIMARY KEY NOT NULL,
+            url TEXT NOT NULL UNIQUE,
+            filename TEXT,
+            date_first_seen REAL,
+            cached INTEGER NOT NULL
+        )""")
+
 
 def get_status_or_defaults(cur, lastmaxid, lastsync):
     """ get values from the current status record, or create a new one if missing
@@ -725,6 +737,103 @@ def insert_or_update_icon(cur, verbose, data):
                 filename = :filename,
                 url = :url
             WHERE keywords = :keywords""", data)
+
+
+def get_or_create_cached_image_record(cur, verbose, image_url, date_first_seen=None):
+    """ attempt to fetch an image cache record for the given url, or create and return one if none found.
+    The date_first_seen parameter is not used to uniquely identify the record and can be None.
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :param image_url: url of image
+    :param date_first_seen: timestamp of entry in which url was first seen (optional)
+    """
+    cur.execute("""
+        SELECT id, url, filename, date_first_seen, cached FROM cached_images
+        WHERE url = :url""", {'url': image_url})
+    row = cur.fetchone()
+    if row:
+        if verbose:
+            print('Found image cache record for: %s' % (image_url))
+        image_url = {
+            "id": row[0],
+            "url": row[1],
+            "filename": row[2],
+            "date_first_seen": row[3],
+            "cached": row[4]
+        }
+        return image_url
+    else:
+        if verbose:
+            print('Creating image cache record for: %s' % (image_url))
+        date_or_none = None
+        if date_first_seen:
+            date_or_none = date_first_seen.strftime('%s')
+        data = {
+            "id": None,
+            "url": image_url,
+            "filename": None,
+            "date_first_seen": date_or_none,
+            "cached": 0
+        }
+        cur.execute("""
+            INSERT INTO cached_images (
+                url, date_first_seen, cached
+            ) VALUES (
+                :url, :date_first_seen, 0
+            ) RETURNING id""", data)
+        row = cur.fetchone()
+        if row:
+            data['id'] = row[0]
+        return data
+
+
+def report_image_as_cached(cur, verbose, image_id, filename, date_first_seen=None):
+    """ attempt to fetch an image cache record for the given url, or create and return one if none found.
+    The date_first_seen parameter is not used to uniquely identify the record and can be None.
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :param image_url: url of image
+    :param date_first_seen: timestamp of entry in which url was first seen (optional)
+    """
+    if date_first_seen:
+        date_or_none = date_first_seen.strftime('%s')
+    data = {
+        "id": image_id,
+        "filename": filename,
+        "date_first_seen": date_or_none
+    }
+    if verbose:
+        print('Reporting image as cached: %s' % (filename))
+    cur.execute("""
+        UPDATE cached_images SET
+            filename = :filename,
+            date_first_seen = :date_first_seen,
+            cached = 1
+        WHERE id = :id""", data)
+
+
+def get_all_successfully_cached_image_records(cur, verbose):
+    """ get all records in the image cache that report they have been cached successfully
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :return: An array of cache records
+    """
+    if verbose:
+        print('Fetching all successfully cached images')
+    cur.execute("""SELECT
+        id, url, filename, date_first_seen
+        FROM cached_images WHERE cached = 1""")
+    rows = cur.fetchall()
+    images = []
+    for row in rows:
+        image = {
+            "id": row[0],
+            "url": row[1],
+            "filename": row[2],
+            "date_first_seen": row[3]
+        }
+        images.append(image)
+    return images
 
 
 def set_status(cur, lastmaxid, lastsync):

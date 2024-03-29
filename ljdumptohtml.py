@@ -27,11 +27,19 @@
 
 
 import sys, os, codecs, pprint, argparse, shutil, xml.dom.minidom
+import urllib2
 import html
 import re
 from datetime import *
 from xml.etree import ElementTree as ET
 from ljdumpsqlite import *
+
+
+MimeExtensions = {
+    "image/gif": ".gif",
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+}
 
 
 def write_html(filename, html_as_string):
@@ -374,7 +382,22 @@ def render_one_entry_container(journal_name, entry, comments, icons_by_keyword, 
     return wrapper
 
 
-def create_single_entry_page(journal_name, entry, comments, icons_by_keyword, moods_by_id, previous_entry=None, next_entry=None):
+def resolve_cached_image_references(content, image_urls_to_filenames):
+    # Find any image URLs
+    urls_found = re.findall(r'img[^\"\'()<>]*\ssrc\s?=\s?[\'\"](https?:/+[^\s\"\'()<>]+)[\'\"]', content, flags=re.IGNORECASE)
+    # Find the set of URLs that have been resolved to local files
+    resolved_urls = []
+    for image_url in urls_found:
+        if image_url in image_urls_to_filenames:
+            resolved_urls.append(image_url)
+    # Swap them in
+    for image_url in resolved_urls:
+        filename = image_urls_to_filenames[image_url]
+        content = content.replace(image_url, ("../images/%s" % filename))
+    return content
+
+
+def create_single_entry_page(journal_name, entry, comments, image_urls_to_filenames, icons_by_keyword, moods_by_id, previous_entry=None, next_entry=None):
     page, content = create_template_page(journal_name, "%s entry %s" % (journal_name, entry['itemid']))
 
     # Top navigation area (e.g. "previous" and "next" links)
@@ -449,6 +472,7 @@ def create_single_entry_page(journal_name, entry, comments, icons_by_keyword, mo
 
     text_strings = []
     entry_body = entry['event']
+    entry_body = resolve_cached_image_references(entry_body, image_urls_to_filenames)
     entry_body = re.sub("(\r\n|\r|\n)", "<br />", entry_body)
     text_strings.append(html_split_on_entry_body[0])
     text_strings.append(u'<div class="entry-content" id="entry-content-insertion-point">')
@@ -471,7 +495,7 @@ def create_single_entry_page(journal_name, entry, comments, icons_by_keyword, mo
     return ''.join(text_strings)
 
 
-def create_history_page(journal_name, entries, comments_grouped_by_entry, icons_by_keyword, moods_by_id, page_number, previous_page_entry_count=0, next_page_entry_count=0):
+def create_history_page(journal_name, entries, comments_grouped_by_entry, image_urls_to_filenames, icons_by_keyword, moods_by_id, page_number, previous_page_entry_count=0, next_page_entry_count=0):
     page, content = create_template_page(journal_name, "%s entries page %s" % (journal_name, page_number))
 
     # Top navigation area (e.g. "previous" and "next" links)
@@ -536,6 +560,7 @@ def create_history_page(journal_name, entries, comments_grouped_by_entry, icons_
     for i in range(0, len(entries)):
         e = entries[i]
         entry_body = e['event']
+        entry_body = resolve_cached_image_references(entry_body, image_urls_to_filenames)
         entry_body = re.sub("(\r\n|\r|\n)", "<br />", entry_body)
         text_strings.append(html_split_on_insertion_points[i])
         text_strings.append(u'<div class="entry-content" id="entry-content-insertion-point">')
@@ -545,6 +570,57 @@ def create_history_page(journal_name, entries, comments_grouped_by_entry, icons_
     text_strings.append(html_split_on_insertion_points[-1])
 
     return ''.join(text_strings)
+
+
+def download_entry_image(img_url, journal_name, subfolder, url_id):
+    try:
+        image_req = urllib2.urlopen(img_url, timeout = 5)
+        if image_req.headers.maintype != 'image':
+            return (1, None)
+        extension = MimeExtensions.get(image_req.info()["Content-Type"], "")
+
+        # Try and decode any utf-8 in the URL
+        try:
+            filename = codecs.utf_8_decode(img_url)[0]
+        except:
+            # for installations where the above utf_8_decode doesn't work
+            filename = "".join([ord(x) < 128 and x or "_" for x in img_url])
+        # There may not be an extension we're familiar with present, but if there is, remove it
+        filename = re.sub(r'(\.gif|\.jpg|\.jpeg|\.png)$', "", filename, flags=re.IGNORECASE)
+        # Take the protocol off the URL
+        filename = re.sub(r'^https?:/+', "", filename, flags=re.IGNORECASE)
+        # Neutralize characters that don't look like a basic filename, and truncate it to the last 50 characters
+        filename = re.sub(r'[*?\\/:\.\'<> "|]+', "_", filename[-50:] )
+        filename = filename.lstrip("_")
+        filename = "%s/%s-%s%s" % (subfolder, url_id, filename, extension)
+
+        # Make sure our cache folder and subfolder exist
+        try:
+            os.mkdir("%s/images" % (journal_name))
+        except OSError as e:
+            if e.errno == 17:   # Folder already exists
+                pass
+        try:
+            os.mkdir("%s/images/%s" % (journal_name, subfolder))
+        except OSError as e:
+            if e.errno == 17:   # Folder already exists
+                pass
+
+        # Copy the file stream directly into the file and close both
+        pic_file = open("%s/images/%s" % (journal_name, filename), "wb")
+        shutil.copyfileobj(image_req, pic_file)
+        image_req.close()
+        pic_file.close()
+        return (0, filename)
+    except urllib2.HTTPError as e:
+        print(e)
+        return (e.code, None)
+    except urllib2.URLError as e:
+        print(e)
+        return (2, None)
+    except Exception as e:
+        print(e)
+        return (1, None)
 
 
 def ljdumptohtml(username, journal_name, verbose=True):
@@ -591,7 +667,40 @@ def ljdumptohtml(username, journal_name, verbose=True):
     for mood in all_moods:
         moods_by_id[mood['id']] = mood
 
-    #pprint.pprint(all_icons_by_keyword)
+    image_resolve_max = 100
+    entry_index = 0
+
+    # Get a list of all the image tag URLs across all entries
+    all_image_urls_found = []
+    while image_resolve_max > 0:
+        if entry_index > len(entries_by_date):
+            image_resolve_max = 0
+        else:
+            entry = entries_by_date[entry_index]
+            entry_index += 1
+            e_id = entry['itemid']
+            entry_date = datetime.fromtimestamp(entry['eventtime_unix'])
+            entry_body = entry['event']
+            urls_found = re.findall(r'img[^\"\'()<>]*\ssrc\s?=\s?[\'\"](https?:/+[^\s\"\'()<>]+)[\'\"]', entry_body, flags=re.IGNORECASE)
+            all_image_urls_found.extend(urls_found)
+            subfolder = entry_date.strftime("%Y-%m")
+            for image_url in urls_found:
+                cached_image = get_or_create_cached_image_record(cur, verbose, image_url, entry_date)
+                # If we already have an image cached for this URL, skip it.
+                if cached_image['cached'] == False:
+                    image_id = cached_image['id']
+                    cache_result = 0
+                    img_filename = None
+                    (cache_result, img_filename) = download_entry_image(image_url, journal_name, subfolder, image_id)
+                    if (cache_result == 0) and (img_filename is not None):
+                        report_image_as_cached(cur, verbose, image_id, img_filename, entry_date)
+                        image_resolve_max -= 1
+
+    all_cached = get_all_successfully_cached_image_records(cur, verbose)
+    image_urls_to_filenames = {}
+    for i in all_cached:
+        image_urls_to_filenames[i['url']] = i['filename']
+
 
     #
     # Entry pages, one per entry.
@@ -619,6 +728,7 @@ def ljdumptohtml(username, journal_name, verbose=True):
                     journal_name=journal_name,
                     entry=entry,
                     comments=comments_grouped_by_entry[entry['itemid']],
+                    image_urls_to_filenames=image_urls_to_filenames,
                     icons_by_keyword=icons_by_keyword,
                     moods_by_id=moods_by_id,
                     previous_entry=previous_entry,
@@ -661,6 +771,7 @@ def ljdumptohtml(username, journal_name, verbose=True):
                     journal_name=journal_name,
                     entries=groups_of_twenty[i],
                     comments_grouped_by_entry=comments_grouped_by_entry,
+                    image_urls_to_filenames=image_urls_to_filenames,
                     icons_by_keyword=icons_by_keyword,
                     moods_by_id=moods_by_id,
                     page_number=i+1,
@@ -679,6 +790,8 @@ def ljdumptohtml(username, journal_name, verbose=True):
     source = "user.png"
     dest = "%s/user.png" % (journal_name)
     shutil.copyfile(source, dest)
+
+    finish_with_database(conn, cur)
 
     print("Done!")
 
