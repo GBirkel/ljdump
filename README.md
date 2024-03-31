@@ -6,6 +6,7 @@ This program reads the journal entries from a Livejournal or Dreamwidth (or comp
 
 * One page per entry, with comments shown in their original threaded structure.
 * History pages with 20 entries each, ordered by date, for as many pages as needed.
+* A table of contents page with links to the above, and to entries organized by tag.
 
 Page structure is as close as possible to what Dreamwidth renders, so you can drop in your own stylesheet and the result will look a lot like your own journal.
 
