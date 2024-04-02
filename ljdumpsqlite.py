@@ -771,7 +771,7 @@ def insert_or_update_user_in_map(cur, verbose, id, name):
     :param name: user name
     """
     data = {'id': id, 'name': name}
-    cur.execute("SELECT keywords FROM icons WHERE keywords = :keywords", data)
+    cur.execute("SELECT id FROM users_map WHERE id = :id", data)
     row = cur.fetchone()
     if not row:
         if verbose:
