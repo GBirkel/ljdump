@@ -38,11 +38,17 @@ So, it's not possible to get the local HTML to look exactly like your online jou
 
 __To get the full archive of a very large journal, you may need to run the script a few times in a row, until it says there are no new changes.__
 
-The simplest way to run this is to execute the **ljdump.py** script with Python, for example:
+The simplest way to run this is to execute the **ljdump.py** script in your terminal program of choice, for example:
 
-`python ljdump.py --cache_images`
+`./ljdump.py --cache_images`
 
-Depending on your OS, you may be able to double-click the script directly, or you may need to open a Terminal/Command Prompt window to run it. Either way, it will prompt you for your Livejournal username and password, then download all your journal entries, comments, and userpics.
+On MacOS, if you haven't ever run a Python 3 script before on your machine, a window may pop up from Apple saying you need to install the developer tools, like so:
+
+<img src="dev_tools_alert.jpg" style="max-width:30%;">
+
+This is normal.  Just let it download and install, and then try running the command again.
+
+The script will then prompt you for your journal username and password, and begin downloading all your journal entries, comments, and userpics.
 
 You may optionally download entries from a different journal (a community) where you are a member. If you are a community maintainer, you can also download comments from the community.
 
