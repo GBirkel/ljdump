@@ -96,7 +96,7 @@ Activates the image caching.  The script will attempt to cache 200 images at a t
 
 Note that you can run the script that generates the HTML by itself, skipping over the synchronization process.  Running it repeatedly will let you cache lots of images without bothering the journal servers:
 
-`python ljdumptohtml.py --cache_images`
+`./ljdumptohtml.py --cache_images`
 
 ## Have fun!  ##
 
