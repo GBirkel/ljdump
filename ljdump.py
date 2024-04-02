@@ -302,8 +302,11 @@ def ljdump(journal_server, username, password, journal_short_name, verbose=True,
                 'body': gettext(c.getElementsByTagName("body")),
                 'state': metacache[id]['state']
             }
-            if c.getAttribute("posterid") in usermap:
-                db_comment["user"] = usermap[c.getAttribute("posterid")]
+            try:
+                if int(c.getAttribute("posterid")) in usermap:
+                    db_comment["user"] = usermap[int(c.getAttribute("posterid"))]
+            except ValueError:
+                pass
 
             was_new = insert_or_update_comment(cur, verbose, db_comment)
             if was_new:

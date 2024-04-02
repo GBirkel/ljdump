@@ -624,7 +624,7 @@ def create_table_of_contents_page(journal_short_name, entry_count, entries_table
 def download_entry_image(img_url, journal_short_name, subfolder, url_id):
     try:
         image_req = urllib.request.urlopen(img_url, timeout = 5)
-        if image_req.headers.maintype != 'image':
+        if image_req.headers.get_content_maintype != 'image':
             return (1, None)
         extension = MimeExtensions.get(image_req.info()["Content-Type"], "")
 
