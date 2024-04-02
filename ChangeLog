@@ -1,9 +1,15 @@
 ChangeLog - ljdump
 
+Version 1.7 - 2024-04-02
+
+- Removed old non-sql storage methods
+- Added image caching option
+- Ported to Python 3
+
 Version 1.6.1 - 2024-03-25
 
 - "--sql" is now the default (and replaced with "--nosql")
-- Downloads mood infotmation for the given user
+- Downloads mood information for the given user
 - Downloads tag statistics for the given user
 
 Version 1.6 - 2024-03-24

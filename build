@@ -5,7 +5,8 @@ VERSION=`grep Version ljdump.py | cut -d' ' -f3`
 DIR=ljdump-$VERSION
 rm -rf $DIR
 mkdir $DIR
-cp ChangeLog README.txt ljdump.py ljdump.config.sample $DIR/
+cp ljdump.py ljdumpsqlite.py ljdumptohtml.py ljdump.config.sample $DIR/
+cp ChangeLog README.md stylesheet.css user.png dev_tools_alert.png treasure.jpg $DIR/
 
 TARGZ=ljdump-$VERSION.tar.gz
 rm $TARGZ
