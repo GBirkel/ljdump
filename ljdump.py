@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #
 # ljdump.py - livejournal archiver
@@ -25,7 +25,8 @@
 #
 # Copyright (c) 2005-2010 Greg Hewgill and contributors
 
-import argparse, codecs, os, pickle, pprint, re, shutil, sys, urllib2, xml.dom.minidom, xmlrpclib
+import argparse, codecs, os, pickle, pprint, re, shutil, sys, xml.dom.minidom
+import xmlrpc.client
 from getpass import getpass
 import urllib
 from xml.sax import saxutils
@@ -43,26 +44,22 @@ MimeExtensions = {
 }
 
 
-def flatresponse(response):
-    r = {}
-    while True:
-        name = response.readline()
-        if len(name) == 0:
-            break
-        if name[-1] == '\n':
-            name = name[:len(name)-1]
-        value = response.readline()
-        if value[-1] == '\n':
-            value = value[:len(value)-1]
-        r[name] = value
-    return r
-
-
 def getljsession(journal_server, username, password):
     """Log in with password and get session cookie."""
-    qs = "mode=sessiongenerate&user=%s&auth_method=clear&password=%s" % (urllib.quote(username), urllib.quote(password))
-    r = urllib2.urlopen(journal_server+"/interface/flat", qs)
-    response = flatresponse(r)
+    d = dict(   mode="sessiongenerate",
+                user=username,
+                auth_method="clear",
+                password=password
+    )
+    data = urllib.parse.urlencode(d).encode("utf-8")
+    r = urllib.request.urlopen(journal_server+"/interface/flat", data=data)
+    response = {}
+    while True:
+        name = r.readline()
+        if len(name) == 0:
+            break
+        value = r.readline()
+        response[name.decode('utf-8').strip()] = value.decode('utf-8').strip()
     r.close()
     return response['ljsession']
 
@@ -93,7 +90,7 @@ def ljdump(journal_server, username, password, journal_short_name, verbose=True,
 
     ljsession = getljsession(journal_server, username, password)
 
-    server = xmlrpclib.ServerProxy(journal_server+"/interface/xmlrpc")
+    server = xmlrpc.client.ServerProxy(journal_server+"/interface/xmlrpc")
 
     def authed(params):
         """Transform API call params to include authorization."""
@@ -185,7 +182,7 @@ def ljdump(journal_server, username, password, journal_short_name, verbose=True,
                 else:
                     print("Unexpected empty item: %s" % item['item'])
                     errors += 1
-            except xmlrpclib.Fault as x:
+            except xmlrpc.client.Fault as x:
                 print("Error getting item: %s" % item['item'])
                 pprint.pprint(x)
                 errors += 1
@@ -211,19 +208,12 @@ def ljdump(journal_server, username, password, journal_short_name, verbose=True,
     except:
         metacache = {}
 
-    try:
-        f = open("%s/user.map" % journal_short_name)
-        usermap = pickle.load(f)
-        f.close()
-    except:
-        usermap = {}
-
     maxid = lastmaxid
     while True:
         try:
             try:
-                r = urllib2.urlopen(
-                        urllib2.Request(
+                r = urllib.request.urlopen(
+                        urllib.request.Request(
                             journal_server+"/export_comments.bml?get=comment_meta&startid=%d%s" % (maxid+1, authas),
                             headers = {'Cookie': "ljsession="+ljsession}
                        )
@@ -248,17 +238,11 @@ def ljdump(journal_server, username, password, journal_short_name, verbose=True,
             if id > maxid:
                 maxid = id
         for u in meta.getElementsByTagName("usermap"):
-            usermap[u.getAttribute("id")] = u.getAttribute("user")
+            insert_or_update_user_in_map(cur, verbose, u.getAttribute("id"), u.getAttribute("user"))
         if maxid >= int(meta.getElementsByTagName("maxid")[0].firstChild.nodeValue):
             break
 
-    f = open("%s/comment.meta" % journal_short_name, "w")
-    pickle.dump(metacache, f)
-    f.close()
-
-    f = open("%s/user.map" % journal_short_name, "w")
-    pickle.dump(usermap, f)
-    f.close()
+    usermap = get_users_map(cur, verbose)
 
     newmaxid = maxid
     maxid = lastmaxid
@@ -288,8 +272,8 @@ def ljdump(journal_server, username, password, journal_short_name, verbose=True,
             if verbose:
                 print('Fetching comment bodies starting at %s' % (commentid))
             try:
-                r = urllib2.urlopen(
-                    urllib2.Request(
+                r = urllib.request.urlopen(
+                    urllib.request.Request(
                         journal_server+"/export_comments.bml?get=comment_body&startid=%d%s" % (commentid, authas),
                         headers = {'Cookie': "ljsession="+ljsession}
                     )
@@ -394,7 +378,7 @@ def ljdump(journal_server, username, password, journal_short_name, verbose=True,
             print("Fetching userpics for: %s" % journal_short_name)
 
         for p in userpics:
-            pic = urllib2.urlopen(userpics[p])
+            pic = urllib.request.urlopen(userpics[p])
             ext = MimeExtensions.get(pic.info()["Content-Type"], "")
             picfn = re.sub(r'[*?\\/:<> "|]', "_", p)
             try:

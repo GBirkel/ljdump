@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #
 # ljdumpsqlite.py - SQLite support tools for livejournal archiver
@@ -28,7 +28,7 @@ from datetime import *
 import sqlite3
 from sqlite3 import Error
 from xml.sax import saxutils
-
+from builtins import str
 
 # Subclass of tzinfo swiped mostly from dateutil
 class fancytzoffset(tzinfo):
@@ -77,10 +77,10 @@ def object_to_xml_string(accumulator, name, e):
             accumulator += object_to_xml_string(f, k, e[k])
         else:
             try:
-                s = unicode(str(e[k]), "UTF-8")
+                s = str(e[k])
             except UnicodeDecodeError:
                 # fall back to Latin-1 for old entries that aren't UTF-8
-                s = unicode(str(e[k]), "cp1252")
+                s = e[k].decode('cp1252')
             accumulator += ("<%s>%s</%s>\n" % (k, saxutils.escape(s), k))
     accumulator += ("</%s>\n" % name)
     return accumulator
@@ -213,6 +213,12 @@ def create_tables_if_missing(conn, verbose):
             keywords TEXT PRIMARY KEY NOT NULL,
             filename TEXT,
             url TEXT
+        )""")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users_map (
+            id INTEGER PRIMARY KEY NOT NULL,
+            name TEXT
         )""")
 
     # This table does not reflect any data taken directly from the journal site.
@@ -371,6 +377,7 @@ def insert_or_update_event(cur, verbose, ev):
     # Preserve all the properties as an XML chunk in case there are
     # some we're not aware of here.
     prop_dump = object_to_xml_string('<?xml version="1.0"?>', "props", ev['props'])
+    event_content = str(ev['event'])
 
     data = {
         "itemid": ev['itemid'],
@@ -380,8 +387,8 @@ def insert_or_update_event(cur, verbose, ev):
         "logtime": logtime.isoformat(),
         "logtime_unix": logtime.strftime('%s'),
 
-        "subject": str(ev.get('subject', "")).decode('utf8'),
-        "event": str(ev['event']).decode('utf8'),
+        "subject": ev.get('subject', ""),
+        "event": event_content,
         "url": ev.get("url", None),
 
         "props_commentalter": ev['props'].get("commentalter", None),
@@ -738,6 +745,45 @@ def insert_or_update_icon(cur, verbose, data):
                 filename = :filename,
                 url = :url
             WHERE keywords = :keywords""", data)
+
+
+def get_users_map(cur, verbose):
+    """ get the curent map of user ids to users, accumulated from previous comment fetches
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :return: A dictionary of ids to user names
+    """
+    if verbose:
+        print('Fetching current users map from database')
+    cur.execute("SELECT id, name FROM users_map")
+    rows = cur.fetchall()
+    users = {}
+    for row in rows:
+        users[row[0]] = row[1]
+    return users
+
+
+def insert_or_update_user_in_map(cur, verbose, id, name):
+    """ insert or update a cached mapping of a user id to a user name
+    :param cur: database cursor
+    :param verbose: whether we are verbose logging
+    :param id: user id
+    :param name: user name
+    """
+    data = {'id': id, 'name': name}
+    cur.execute("SELECT keywords FROM icons WHERE keywords = :keywords", data)
+    row = cur.fetchone()
+    if not row:
+        if verbose:
+            print('Adding new id-to-username: %s %s' % (data['id'], data['name']))
+        cur.execute("""
+            INSERT INTO users_map (id, name) VALUES (:id, :name)""",
+            data)
+    else:
+        if verbose:
+            print('Updating existing id-to-username: %s %s' % (data['id'], data['name']))
+        cur.execute("""
+            UPDATE users_map SET name = :name WHERE id = :id""", data)
 
 
 def get_or_create_cached_image_record(cur, verbose, image_url, date_first_seen=None):

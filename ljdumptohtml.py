@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #
 # ljdumptohtml.py - convert sqlite livejournal archive to html pages 
@@ -27,7 +27,7 @@
 
 
 import sys, os, codecs, pprint, argparse, shutil, xml.dom.minidom
-import urllib2
+import urllib
 import html
 import re
 from datetime import *
@@ -623,7 +623,7 @@ def create_table_of_contents_page(journal_short_name, entry_count, entries_table
 
 def download_entry_image(img_url, journal_short_name, subfolder, url_id):
     try:
-        image_req = urllib2.urlopen(img_url, timeout = 5)
+        image_req = urllib.request.urlopen(img_url, timeout = 5)
         if image_req.headers.maintype != 'image':
             return (1, None)
         extension = MimeExtensions.get(image_req.info()["Content-Type"], "")
@@ -661,10 +661,10 @@ def download_entry_image(img_url, journal_short_name, subfolder, url_id):
         image_req.close()
         pic_file.close()
         return (0, filename)
-    except urllib2.HTTPError as e:
+    except urllib.error.HTTPError as e:
         print(e)
         return (e.code, None)
-    except urllib2.URLError as e:
+    except urllib.error.URLError as e:
         print(e)
         return (2, None)
     except Exception as e:
