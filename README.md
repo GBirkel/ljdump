@@ -44,7 +44,7 @@ The simplest way to run this is to execute the **ljdump.py** script in your term
 
 On MacOS, if you haven't ever run a Python 3 script before on your machine, a window may pop up from Apple saying you need to install the developer tools, like so:
 
-<img src="dev_tools_alert.jpg" style="max-width:30%;">
+<img src="dev_tools_alert.jpg" style="width:50%;max-width:600px;">
 
 This is normal.  Just let it download and install, and then try running the command again.
 
