@@ -378,6 +378,9 @@ def insert_or_update_event(cur, verbose, ev):
     # some we're not aware of here.
     prop_dump = object_to_xml_string('<?xml version="1.0"?>', "props", ev['props'])
     event_content = str(ev['event'])
+    event_subject = None
+    if 'subject' in ev:
+        event_subject = str(ev['subject'])
 
     data = {
         "itemid": ev['itemid'],
@@ -387,7 +390,7 @@ def insert_or_update_event(cur, verbose, ev):
         "logtime": logtime.isoformat(),
         "logtime_unix": logtime.strftime('%s'),
 
-        "subject": ev.get('subject', ""),
+        "subject": event_subject,
         "event": event_content,
         "url": ev.get("url", None),
 
