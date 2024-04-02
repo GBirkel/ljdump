@@ -3,7 +3,7 @@
 #
 # ljdumptohtml.py - convert sqlite livejournal archive to html pages 
 # Garrett Birkel et al
-# Version 0.5(alpha)
+# Version 1.7.1
 #
 # LICENSE
 #

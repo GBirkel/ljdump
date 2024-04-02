@@ -1,5 +1,9 @@
 ChangeLog - ljdump
 
+Version 1.7.1 - 2024-04-02
+
+- A handful of bug fixes for the Python 3 port
+
 Version 1.7 - 2024-04-02
 
 - Removed old non-sql storage methods
