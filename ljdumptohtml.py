@@ -131,7 +131,9 @@ def render_comment_and_subcomments_containers(comment, comments_by_id, comment_c
     span_date_value = ET.SubElement(comment_date, 'span')
     if comment['date_unix']:
         d = datetime.utcfromtimestamp(comment['date_unix'])
-        span_date_value.text = html.escape(d.strftime("%b. %-d, %Y %-I:%M %p"))
+        # If anybody has a way to get rid of the leading zero that works in MacOS and Windows 11, let me know.
+        dh = int(f'{d:%I}')
+        span_date_value.text = html.escape(f'{d:%b}. {d.day}, {d:%Y} {dh}:{d:%M} {d:%p}')
     else:
         span_date_value.text = "(None)"
 
@@ -270,7 +272,9 @@ def render_one_entry_container(journal_short_name, entry, comments_count, icons_
     # Datestamp
     entry_date = ET.SubElement(entry_header_inner, 'span', attrib={'class': 'datetime'})
     d = datetime.utcfromtimestamp(entry['eventtime_unix'])
-    entry_date.text = html.escape(d.strftime("%b. %-d, %Y %-I:%M %p"))
+    # If anybody has a way to get rid of the leading zero that works in MacOS and Windows 11, let me know.
+    dh = int(f'{d:%I}')
+    entry_date.text = html.escape(f'{d:%b}. {d.day}, {d:%Y} {dh}:{d:%M} {d:%p}')
 
     # Another entry inner wrapper
     entry_div = ET.SubElement(entry_inner, 'div')
@@ -583,9 +587,9 @@ def create_table_of_contents_page(journal_short_name, entry_count, entries_table
     for toc in history_page_table_of_contents:
         history_li = ET.SubElement(history_ul, 'li')
         history_a = ET.SubElement(history_li, 'a', attrib={ 'href': toc['filename'] })
-        d_from = html.escape(toc['from'].strftime("%Y %b. %-d"))
-        d_to = html.escape(toc['to'].strftime("%Y %b. %-d"))
-        history_a.text = "%s to %s" % (d_from, d_to)
+        d_from = html.escape(toc['from'].strftime("%Y %b %e"))
+        d_to = html.escape(toc['to'].strftime("%Y %b %e"))
+        history_a.text = "%s ... %s" % (d_from, d_to)
 
     tag_toc_banner = ET.SubElement(content, 'h2')
     tag_toc_banner.text = 'Entries By Tag'
@@ -599,7 +603,9 @@ def create_table_of_contents_page(journal_short_name, entry_count, entries_table
         for toc in entries_by_tag[tag]:
             tag_li = ET.SubElement(tag_ul, 'li')
             tag_a = ET.SubElement(tag_li, 'a', attrib={ 'href': toc['filename'] })
-            e_date = html.escape(toc['date'].strftime("%Y %b. %-d, %-I:%M %p"))
+            d = toc['date']
+            dh = int(f'{d:%I}')
+            e_date = html.escape(f'{d:%b}. {d.day}, {d:%Y} {dh}:{d:%M} {d:%p}')
             tag_a.text = "%s:" % e_date
             tag_a.tail = " %s" % toc['subject']
 
@@ -614,7 +620,9 @@ def create_table_of_contents_page(journal_short_name, entry_count, entries_table
         for toc in toc_group:
             month_li = ET.SubElement(month_ul, 'li')
             month_a = ET.SubElement(month_li, 'a', attrib={ 'href': toc['filename'] })
-            e_date = html.escape(toc['date'].strftime("%b. %-d, %-I:%M %p"))
+            d = toc['date']
+            dh = int(f'{d:%I}')
+            e_date = html.escape(f'{d:%b}. {d.day}, {d:%Y} {dh}:{d:%M} {d:%p}')
             month_a.text = "%s:" % e_date
             month_a.tail = " %s" % toc['subject']
 
