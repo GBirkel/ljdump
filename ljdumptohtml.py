@@ -30,6 +30,7 @@ import sys, os, codecs, pprint, argparse, shutil, xml.dom.minidom
 import urllib
 import html
 import re
+import calendar
 from datetime import *
 from xml.etree import ElementTree as ET
 from ljdumpsqlite import *
@@ -129,7 +130,7 @@ def render_comment_and_subcomments_containers(comment, comments_by_id, comment_c
     span_date.text = "Date: "
     span_date_value = ET.SubElement(comment_date, 'span')
     if comment['date_unix']:
-        d = datetime.fromtimestamp(comment['date_unix'])
+        d = datetime.utcfromtimestamp(comment['date_unix'])
         span_date_value.text = html.escape(d.strftime("%b. %-d, %Y %-I:%M %p"))
     else:
         span_date_value.text = "(None)"
@@ -268,7 +269,7 @@ def render_one_entry_container(journal_short_name, entry, comments_count, icons_
 
     # Datestamp
     entry_date = ET.SubElement(entry_header_inner, 'span', attrib={'class': 'datetime'})
-    d = datetime.fromtimestamp(entry['eventtime_unix'])
+    d = datetime.utcfromtimestamp(entry['eventtime_unix'])
     entry_date.text = html.escape(d.strftime("%b. %-d, %Y %-I:%M %p"))
 
     # Another entry inner wrapper
@@ -730,7 +731,7 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
                 entry = entries_by_date[entry_index]
                 entry_index += 1
                 e_id = entry['itemid']
-                entry_date = datetime.fromtimestamp(entry['eventtime_unix'])
+                entry_date = datetime.utcfromtimestamp(entry['eventtime_unix'])
                 entry_body = entry['event']
                 urls_found = re.findall(r'img[^\"\'()<>]*\ssrc\s?=\s?[\'\"](https?:/+[^\s\"\'()<>]+)[\'\"]', entry_body, flags=re.IGNORECASE)
                 subfolder = entry_date.strftime("%Y-%m")
@@ -739,7 +740,7 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
                     try_cache = True
                     # If a fetch was already attempted less than one day ago, don't try again
                     if cached_image['date_last_attempted']:
-                        current_date = int(datetime.utcnow().strftime('%s'))
+                        current_date = int(calendar.timegm(datetime.utcnow().utctimetuple()))
                         if int(current_date) - int(cached_image['date_last_attempted']) < 86400:
                             try_cache = False
                     # If we already have an image cached for this URL, skip it.
@@ -780,7 +781,7 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
 
     for i in range(0, len(entries_by_date)):
         entry = entries_by_date[i]
-        entry_date = datetime.fromtimestamp(entry['eventtime_unix'])
+        entry_date = datetime.utcfromtimestamp(entry['eventtime_unix'])
         entry_year_and_month_str = entry_date.strftime("%Y-%m")
 
         # Used for building a table of contents later
@@ -869,8 +870,8 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
 
         # Used for building a table of contents later
         toc = {
-            'from': datetime.fromtimestamp(current_group[0]['eventtime_unix']),
-            'to': datetime.fromtimestamp(current_group[-1]['eventtime_unix']),
+            'from': datetime.utcfromtimestamp(current_group[0]['eventtime_unix']),
+            'to': datetime.utcfromtimestamp(current_group[-1]['eventtime_unix']),
             'filename': "history/page-%s.html" % (i+1)
         }
         history_page_table_of_contents.append(toc)
@@ -886,7 +887,7 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
         if taglist is not None:
             # Used for building a table of contents later
             toc = {
-                'date': datetime.fromtimestamp(entry['eventtime_unix']),
+                'date': datetime.utcfromtimestamp(entry['eventtime_unix']),
                 'subject': entry['subject'],
                 'filename': ("entries/entry-%s.html" % entry['itemid'])
             }

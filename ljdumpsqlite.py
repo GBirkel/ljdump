@@ -25,10 +25,12 @@
 # Copyright (c) 2024 Garrett Birkel and contributors
 
 from datetime import *
+import calendar
 import sqlite3
 from sqlite3 import Error
 from xml.sax import saxutils
 from builtins import str
+
 
 # Subclass of tzinfo swiped mostly from dateutil
 class fancytzoffset(tzinfo):
@@ -386,9 +388,9 @@ def insert_or_update_event(cur, verbose, ev):
         "itemid": ev['itemid'],
         "anum": ev.get("anum", None),
         "eventtime": eventtime.isoformat(),
-        "eventtime_unix": eventtime.strftime('%s'),
+        "eventtime_unix": calendar.timegm(eventtime.utctimetuple()),
         "logtime": logtime.isoformat(),
-        "logtime_unix": logtime.strftime('%s'),
+        "logtime_unix": calendar.timegm(logtime.utctimetuple()),
 
         "subject": event_subject,
         "event": event_content,
@@ -540,7 +542,7 @@ def insert_or_update_comment(cur, verbose, comment):
         commenttime = commenttime.replace(tzinfo=tz_utc)
 
         comment['date'] = commenttime.isoformat()
-        comment['date_unix'] = commenttime.strftime('%s')
+        comment['date_unix'] = calendar.timegm(commenttime.utctimetuple())
 
     cur.execute("SELECT id FROM comments WHERE id = :id", comment)
     row = cur.fetchone()
@@ -845,7 +847,7 @@ def report_image_as_attempted(cur, verbose, image_id):
     :param verbose: whether we are verbose logging
     :param image_id: id of image
     """
-    current_date = datetime.utcnow().strftime('%s')
+    current_date = calendar.timegm(datetime.utcnow().utctimetuple())
     data = {
         "id": image_id,
         "date_last_attempted": current_date
@@ -862,8 +864,8 @@ def report_image_as_cached(cur, verbose, image_id, filename, date_first_seen=Non
     :param date_first_seen: timestamp of entry in which url was first seen (optional)
     """
     if date_first_seen:
-        date_or_none = date_first_seen.strftime('%s')
-    current_date = datetime.utcnow().strftime('%s')
+        date_or_none = calendar.timegm(date_first_seen.utctimetuple())
+    current_date = calendar.timegm(datetime.utcnow().utctimetuple())
     data = {
         "id": image_id,
         "filename": filename,
