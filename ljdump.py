@@ -448,18 +448,18 @@ if __name__ == "__main__":
         print("ljdump - livejournal archiver")
         print
         default_server = "https://livejournal.com"
-        journal_server = raw_input("Alternative server to use (e.g. 'https://www.dreamwidth.org'), or hit return for '%s': " % default_server) or default_server
+        journal_server = input("Alternative server to use (e.g. 'https://www.dreamwidth.org'), or hit return for '%s': " % default_server) or default_server
         print
         print("Enter your Livejournal (or Dreamwidth, etc) username and password.")
         print
-        username = raw_input("Username: ")
+        username = input("Username: ")
         password = getpass("Password: ")
         print
         print("You may back up either your own journal, or a community.")
         print("If you are a community maintainer, you can back up both entries and comments.")
         print("If you are not a maintainer, you can back up only entries.")
         print
-        journal = raw_input("Journal to back up (or hit return to back up '%s'): " % username)
+        journal = input("Journal to back up (or hit return to back up '%s'): " % username)
         print
         if journal:
             journals = [journal]
