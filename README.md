@@ -38,17 +38,31 @@ So, it's not possible to get the local HTML to look exactly like your online jou
 
 __To get the full archive of a very large journal, you may need to run the script a few times in a row, until it says there are no new changes.__
 
-The simplest way to run this is to execute the **ljdump.py** script in your terminal program of choice, for example:
+### Windows ###
+
+If you don't have Python 3 installed, [download it from here](https://www.python.org/downloads/).  All the default settings are fine when you run the installer.
+
+Next, download ljdump [from the releases page](https://github.com/GBirkel/ljdump/releases/).  (Go for the zipfile in the "Assets" section.)  Open up the zip file on your machine and drag everything out into a new folder.  Then, the simplest way to go is to double-click `ljdump.py`, which will open a terminal window.
+
+If you want to use the image caching feature, you'll need to launch the terminal window first.  Try right-clicking in the folder where you dragged the ljdump files, and choosing "Open in Terminal".  A terminal window should open that's already pointed to that directory.  Enter the following:
 
 `./ljdump.py --cache_images`
 
-On MacOS, if you haven't ever run a Python 3 script before on your machine, a window may pop up from Apple saying you need to install the developer tools, like so:
+### MacOS ###
+
+Download ljdump [from the releases page](https://github.com/GBirkel/ljdump/releases/).  (Go for the zipfile in the "Assets" section.)  If the zipfile isn't automatically decompressed into a folder, double-click on it.
+
+Launch the Terminal app, either by typing it into Spotlight or going to the Utilities folder in Applications and opening it from there.  In the Terminal window that appears, type `cd ` (without pressing "return" yet) and then go back to your Finder window.  Drag the decompressed ljdump folder into the Terminal window.  The location of the folder in the filesystem will appear after your `cd ` command.  Press "return." The Terminal window is now pointing at that folder.
+
+Enter `./ljdump.py` (or `./ljdump.py --cache_images` if you want to cache images) and hit "return."
+
+At this point, if you haven't ever run a Python 3 script before on your machine, a window may pop up from Apple saying you need to install the developer tools, like so:
 
 <img src="dev_tools_alert.png" style="width:50%;max-width:600px;">
 
-This is normal.  Just let it download and install, and then try running the command again.
+This is normal.  Just let it download and install, and then try running the command again.  (In the Terminal window, tap the "up" arrow once, and you'll see the previous command you entered.  Then hit "return" again.)
 
-The script will then prompt you for your journal username and password, and begin downloading all your journal entries, comments, and userpics.
+The script will prompt you for a location to download from.  Accept the default for Livejournal by pressing "return", or enter another location, for example `https://dreamwidth.org` for Dreamwidth.  Then the script will ask for your journal username and password, and begin downloading all your journal entries, comments, and userpics.
 
 You may optionally download entries from a different journal (a community) where you are a member. If you are a community maintainer, you can also download comments from the community.
 
