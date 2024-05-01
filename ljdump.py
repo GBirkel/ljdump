@@ -3,7 +3,7 @@
 #
 # ljdump.py - livejournal archiver
 # Greg Hewgill, Garrett Birkel, et al
-# Version 1.7.3
+# Version 1.7.4
 #
 # LICENSE
 #

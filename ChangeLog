@@ -1,5 +1,9 @@
 ChangeLog - ljdump
 
+Version 1.7.4 - 2024-04-30
+
+- Added an option to stop the script from trying to cache images that failed to cache once already.
+
 Version 1.7.3 - 2024-04-04
 
 - An image caching fix for the Python 3 port
