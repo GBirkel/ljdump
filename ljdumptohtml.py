@@ -681,7 +681,7 @@ def download_entry_image(img_url, journal_short_name, subfolder, url_id):
         return (1, None)
 
 
-def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
+def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True, retry_images=True):
     if verbose:
         print("Starting conversion for: %s" % journal_short_name)
 
@@ -748,6 +748,8 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True):
                     try_cache = True
                     # If a fetch was already attempted less than one day ago, don't try again
                     if cached_image['date_last_attempted']:
+                        # Respect the global image cache setting
+                        try_cache = retry_images
                         current_date = int(calendar.timegm(datetime.utcnow().utctimetuple()))
                         if int(current_date) - int(cached_image['date_last_attempted']) < 86400:
                             try_cache = False
@@ -944,6 +946,8 @@ if __name__ == "__main__":
                       help="reduce log output")
     args.add_argument("--cache_images", "-i", action='store_true', dest='cache_images',
                       help="build a cache of images referenced in entries")
+    args.add_argument("--dont_retry_images", "-d", action='store_false', dest='retry_images',
+                      help="don't retry images that failed to cache once already")
     args = args.parse_args()
     if os.access("ljdump.config", os.F_OK):
         config = xml.dom.minidom.parse("ljdump.config")
@@ -973,5 +977,6 @@ if __name__ == "__main__":
             username=username,
             journal_short_name=journal,
             verbose=args.verbose,
-            cache_images=args.cache_images
+            cache_images=args.cache_images,
+            retry_images=args.retry_images
         )

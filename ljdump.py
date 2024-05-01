@@ -70,7 +70,7 @@ def gettext(e):
     return e[0].firstChild.nodeValue
 
 
-def ljdump(journal_server, username, password, journal_short_name, verbose=True, stop_at_fifty=False, make_pages=False, cache_images=False):
+def ljdump(journal_server, username, password, journal_short_name, verbose=True, stop_at_fifty=False, make_pages=False, cache_images=False, retry_images=True):
 
     m = re.search("(.*)/interface/xmlrpc", journal_server)
     if m:
@@ -418,19 +418,22 @@ def ljdump(journal_server, username, password, journal_short_name, verbose=True,
             username=username,
             journal_short_name=journal_short_name,
             verbose=verbose,
-            cache_images=cache_images
+            cache_images=cache_images,
+            retry_images=retry_images
         )
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description="Livejournal archive utility")
     args.add_argument("--quiet", "-q", action='store_false', dest='verbose',
                       help="reduce log output")
-    args.add_argument("--nohtml", "-n", action='store_false', dest='makepages',
+    args.add_argument("--no_html", "-n", action='store_false', dest='make_pages',
                       help="don't process the journal data into HTML files.")
     args.add_argument("--fifty", "-f", action='store_true', dest='fifty',
                       help="stop after synchronizing 50 entries, and do not fetch anything else")
     args.add_argument("--cache_images", "-i", action='store_true', dest='cache_images',
                       help="build a cache of images referenced in entries")
+    args.add_argument("--dont_retry_images", "-d", action='store_false', dest='retry_images',
+                      help="don't retry images that failed to cache once already")
     args = args.parse_args()
     if os.access("ljdump.config", os.F_OK):
         config = xml.dom.minidom.parse("ljdump.config")
@@ -467,5 +470,15 @@ if __name__ == "__main__":
             journals = [username]
 
     for journal in journals:
-        ljdump(journal_server, username, password, journal, args.verbose, args.fifty, args.makepages, args.cache_images)
+        ljdump(
+            journal_server=journal_server,
+            username=username,
+            password=password,
+            journal_short_name=journal,
+            verbose=args.verbose,
+            stop_at_fifty=args.fifty,
+            make_pages=args.make_pages,
+            cache_images=args.cache_images,
+            retry_images=args.retry_images
+        )
 # vim:ts=4 et:	

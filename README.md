@@ -96,7 +96,7 @@ The configuration settings are:
 
 Makes the script print a lot less status information to the console as it runs.
 
-`--nohtml`
+`--no_html`
 
 By defualt, this script constructs HTML pages after saving everything to the SQLite database.  This flag skips the HTML.
 
@@ -107,6 +107,10 @@ Only fetch 50 of the entries that are new since the last sync, then stop.  Usefu
 `--cache_images`
 
 Activates the image caching.  The script will attempt to cache 200 images at a time.  If it fails to cache an image it will skip it for 24 hours, even if the script is run again during that time.
+
+`--dont_retry_images`
+
+If image caching is on, this option will prevent the script from re-trying any images it's failed to cache, though it will still try and cache images it hasn't seen before, like in new or edited entries.
 
 Note that you can run the script that generates the HTML by itself, skipping over the synchronization process.  Running it repeatedly will let you cache lots of images without bothering the journal servers:
 
