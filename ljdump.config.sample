@@ -3,4 +3,5 @@
     <server>https://livejournal.com</server>
     <username>myaccount</username>
     <password>mypassword</password>
+    <ljuniq>ljuniq cookie if you want to download Dreamwidth hosted images</ljuniq>
 </ljdump>

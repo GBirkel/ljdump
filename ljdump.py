@@ -70,7 +70,7 @@ def gettext(e):
     return e[0].firstChild.nodeValue
 
 
-def ljdump(journal_server, username, password, journal_short_name, verbose=True, stop_at_fifty=False, make_pages=False, cache_images=False, retry_images=True):
+def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, verbose=True, stop_at_fifty=False, make_pages=False, cache_images=False, retry_images=True):
 
     m = re.search("(.*)/interface/xmlrpc", journal_server)
     if m:
@@ -416,6 +416,7 @@ def ljdump(journal_server, username, password, journal_short_name, verbose=True,
     if make_pages:
         ljdumptohtml(
             username=username,
+            ljuniq=ljuniq,
             journal_short_name=journal_short_name,
             verbose=verbose,
             cache_images=cache_images,
@@ -439,14 +440,25 @@ if __name__ == "__main__":
         config = xml.dom.minidom.parse("ljdump.config")
         journal_server = config.documentElement.getElementsByTagName("server")[0].childNodes[0].data
         username = config.documentElement.getElementsByTagName("username")[0].childNodes[0].data
+
+        journals = [e.childNodes[0].data for e in config.documentElement.getElementsByTagName("journal")]
+        if not journals:
+            journals = [username]
+
         password_els = config.documentElement.getElementsByTagName("password")
         if len(password_els) > 0:
             password = password_els[0].childNodes[0].data
         else:
             password = getpass("Password: ")
-        journals = [e.childNodes[0].data for e in config.documentElement.getElementsByTagName("journal")]
-        if not journals:
-            journals = [username]
+
+        ljuniq = None
+        # If a user is hosting images on Dreamwidth and using a config file, they will
+        # put their cookie in the config file.  Asking for it every time would annoy users
+        # who are not hosting images on Dreamwidth.
+        if args.cache_images:
+            ljuniq_els = config.documentElement.getElementsByTagName("ljuniq")
+            if len(ljuniq_els) > 0:
+                ljuniq = ljuniq_els[0].childNodes[0].data
     else:
         print("ljdump - livejournal archiver")
         print
@@ -457,6 +469,9 @@ if __name__ == "__main__":
         print
         username = input("Username: ")
         password = getpass("Password: ")
+        ljuniq = None
+        if args.cache_images:
+            ljuniq = getpass("ljuniq cookie (for Dreamwidth hosted image downloads, leave blank otherwise): ")
         print
         print("You may back up either your own journal, or a community.")
         print("If you are a community maintainer, you can back up both entries and comments.")
@@ -474,6 +489,7 @@ if __name__ == "__main__":
             journal_server=journal_server,
             username=username,
             password=password,
+            ljuniq=ljuniq,
             journal_short_name=journal,
             verbose=args.verbose,
             stop_at_fifty=args.fifty,

@@ -27,6 +27,7 @@
 
 
 import sys, os, codecs, pprint, argparse, shutil, xml.dom.minidom
+from getpass import getpass
 import urllib
 import html
 import re
@@ -385,16 +386,19 @@ def render_one_entry_container(journal_short_name, entry, comments_count, icons_
 
 def resolve_cached_image_references(content, image_urls_to_filenames):
     # Find any image URLs
-    urls_found = re.findall(r'img[^\"\'()<>]*\ssrc\s?=\s?[\'\"](https?:/+[^\s\"\'()<>]+)[\'\"]', content, flags=re.IGNORECASE)
-    # Find the set of URLs that have been resolved to local files
-    resolved_urls = []
+    urls_found = re.findall(r'img[^<>]*\ssrc\s?=\s?[\'\"](https?:/+[^\s\"\'()<>]+)[\'\"]', content, flags=re.IGNORECASE)
+    # Build a regular expression to detect images hosted on Dreamwidth
+    dw_hosted_pattern = re.compile('^https://(\w+).dreamwidth.org/file/\d+x\d+/(.+)')
     for image_url in urls_found:
-        if image_url in image_urls_to_filenames:
-            resolved_urls.append(image_url)
-    # Swap them in
-    for image_url in resolved_urls:
-        filename = image_urls_to_filenames[image_url]
-        content = content.replace(image_url, ("../images/%s" % filename))
+
+        url_in_cache = image_url
+        if dw_hosted_pattern.match(image_url):
+            dw_hosted = dw_hosted_pattern.search(image_url)
+            url_in_cache = 'https://' + dw_hosted.group(1) + '.dreamwidth.org/file/' + dw_hosted.group(2)
+
+        if url_in_cache in image_urls_to_filenames:
+            filename = image_urls_to_filenames[url_in_cache]
+            content = content.replace(image_url, ("../images/%s" % filename))
     return content
 
 
@@ -630,10 +634,17 @@ def create_table_of_contents_page(journal_short_name, entry_count, entries_table
     return html_as_string
 
 
-def download_entry_image(img_url, journal_short_name, subfolder, url_id):
+def download_entry_image(img_url, journal_short_name, subfolder, image_id, entry_url, ljuniq):
     try:
-        image_req = urllib.request.urlopen(img_url, timeout = 5)
+        headers = {}
+        # A URL is not mandatory in the journal data, so we need to check that.
+        if (entry_url is not None) and (ljuniq is not None):
+            # Only necessary for Dreamwidth-hosted images, but does no harm generally.
+            headers = {'Referer': entry_url, 'Cookie': "ljuniq="+ljuniq}
+
+        image_req = urllib.request.urlopen(urllib.request.Request(img_url, headers = headers), timeout = 5)
         if image_req.headers.get_content_maintype() != 'image':
+            print('Content type %s not expected, image skipped: %s' % (image_req.headers.get_content_maintype(), img_url))
             return (1, None)
         extension = MimeExtensions.get(image_req.info()["Content-Type"], "")
 
@@ -650,7 +661,7 @@ def download_entry_image(img_url, journal_short_name, subfolder, url_id):
         # Neutralize characters that don't look like a basic filename, and truncate it to the last 50 characters
         filename = re.sub(r'[*?\\/:\.\'<> "|]+', "_", filename[-50:] )
         filename = filename.lstrip("_")
-        filename = "%s/%s-%s%s" % (subfolder, url_id, filename, extension)
+        filename = "%s/%s-%s%s" % (subfolder, image_id, filename, extension)
 
         # Make sure our cache folder and subfolder exist
         try:
@@ -681,7 +692,7 @@ def download_entry_image(img_url, journal_short_name, subfolder, url_id):
         return (1, None)
 
 
-def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True, retry_images=True):
+def ljdumptohtml(username, journal_short_name, ljuniq=None, verbose=True, cache_images=True, retry_images=True):
     if verbose:
         print("Starting conversion for: %s" % journal_short_name)
 
@@ -730,6 +741,7 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True, 
     #
 
     if cache_images:
+        dw_hosted_pattern = re.compile('^https://(\w+).dreamwidth.org/file/\d+x\d+/(.+)')
         image_resolve_max = 200
         entry_index = 0
         while image_resolve_max > 0:
@@ -741,10 +753,16 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True, 
                 e_id = entry['itemid']
                 entry_date = datetime.utcfromtimestamp(entry['eventtime_unix'])
                 entry_body = entry['event']
-                urls_found = re.findall(r'img[^\"\'()<>]*\ssrc\s?=\s?[\'\"](https?:/+[^\s\"\'()<>]+)[\'\"]', entry_body, flags=re.IGNORECASE)
+                urls_found = re.findall(r'<img[^<>]*\ssrc\s?=\s?[\'\"](https?:/+[^\s\"\'()<>]+)[\'\"]', entry_body, flags=re.IGNORECASE)
                 subfolder = entry_date.strftime("%Y-%m")
                 for image_url in urls_found:
-                    cached_image = get_or_create_cached_image_record(cur, verbose, image_url, entry_date)
+
+                    url_to_cache = image_url
+                    if dw_hosted_pattern.match(image_url):
+                        dw_hosted = dw_hosted_pattern.search(image_url)
+                        url_to_cache = 'https://' + dw_hosted.group(1) + '.dreamwidth.org/file/' + dw_hosted.group(2)
+
+                    cached_image = get_or_create_cached_image_record(cur, verbose, url_to_cache, entry_date)
                     try_cache = True
                     # If a fetch was already attempted less than one day ago, don't try again
                     if cached_image['date_last_attempted']:
@@ -758,7 +776,7 @@ def ljdumptohtml(username, journal_short_name, verbose=True, cache_images=True, 
                         image_id = cached_image['id']
                         cache_result = 0
                         img_filename = None
-                        (cache_result, img_filename) = download_entry_image(image_url, journal_short_name, subfolder, image_id)
+                        (cache_result, img_filename) = download_entry_image(url_to_cache, journal_short_name, subfolder, image_id, entry['url'], ljuniq)
                         if (cache_result == 0) and (img_filename is not None):
                             report_image_as_cached(cur, verbose, image_id, img_filename, entry_date)
                             image_resolve_max -= 1
@@ -955,6 +973,15 @@ if __name__ == "__main__":
         journals = [e.childNodes[0].data for e in config.documentElement.getElementsByTagName("journal")]
         if not journals:
             journals = [username]
+
+        ljuniq = None
+        # If a user is hosting images on Dreamwidth and using a config file, they will
+        # put their cookie in the config file.  Asking for it every time would annoy users
+        # who are not hosting images on Dreamwidth.
+        if args.cache_images:
+            ljuniq_els = config.documentElement.getElementsByTagName("ljuniq")
+            if len(ljuniq_els) > 0:
+                ljuniq = ljuniq_els[0].childNodes[0].data
     else:
         print("ljdumptohtml - livejournal (or Dreamwidth, etc) archive to html utility")
         print
@@ -971,10 +998,15 @@ if __name__ == "__main__":
             journals = [journal]
         else:
             journals = [username]
+        ljuniq = None
+        if args.cache_images:
+            ljuniq = getpass("ljuniq cookie (for Dreamwidth hosted image downloads, leave blank otherwise): ")
+        print
 
     for journal in journals:
         ljdumptohtml(
             username=username,
+            ljuniq=ljuniq,
             journal_short_name=journal,
             verbose=args.verbose,
             cache_images=args.cache_images,
