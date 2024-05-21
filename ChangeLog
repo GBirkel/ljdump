@@ -1,5 +1,10 @@
 ChangeLog - ljdump
 
+Version 1.7.5 - 2024-05-20
+
+- Fixed time conversion error on Windows machines.
+- Support for downloading Dreamwidth-hosted images via cookie. Based on code contributed by DW user quietmoment.
+
 Version 1.7.4 - 2024-04-30
 
 - Added an option to stop the script from trying to cache images that failed to cache once already.
