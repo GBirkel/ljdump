@@ -820,7 +820,7 @@ def get_or_create_cached_image_record(cur, verbose, image_url, date_first_seen=N
             print('Creating image cache record for: %s' % (image_url))
         date_or_none = None
         if date_first_seen:
-            date_or_none = date_first_seen.strftime('%s')
+            date_or_none = calendar.timegm(date_first_seen.utctimetuple())
         data = {
             "id": None,
             "url": image_url,
