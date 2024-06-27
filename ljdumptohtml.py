@@ -3,7 +3,7 @@
 #
 # ljdumptohtml.py - convert sqlite livejournal archive to html pages 
 # Garrett Birkel et al
-# Version 1.7.5
+# Version 1.7.6
 #
 # LICENSE
 #
@@ -464,14 +464,14 @@ def create_single_entry_page(journal_short_name, entry, comments, image_urls_to_
         bottomnav_a.text = u"Next Entry"
 
     # We're going to be weird here, because journal entries often contain weird and
-    # broken HTML.  We really can't rely on parsing a journal entry into XML and then
+    # broken HTML.  We can't rely on parsing a journal entry into XML and then
     # embedding it as elements.  There is also no clean way to slipstream string data
     # into the XML during the rendering process (it either gets parsed as usual before
     # insertion, or run through an escaper).  So we're going to render the document as
     # text right here, and then do a text search (a split) to find the div with id
     # "entry-content-insertion-point".  Then we'll interleave the entry contents and
     # re-assemble the document.  It's hacky but it avoids the need to police the HTML
-    # skills of thousands of users whose entires render fine in Dreamwidth.
+    # skills of thousands of users whose entries render fine in Dreamwidth.
     html_as_string = ET.tostring(page, encoding="utf-8", method="html").decode('utf-8')
     html_split_on_entry_body = html_as_string.split(u'<div class="entry-content" id="entry-content-insertion-point"></div>')
 
@@ -642,7 +642,7 @@ def download_entry_image(img_url, journal_short_name, subfolder, image_id, entry
             # Only necessary for Dreamwidth-hosted images, but does no harm generally.
             headers = {'Referer': entry_url, 'Cookie': "ljuniq="+ljuniq}
 
-        image_req = urllib.request.urlopen(urllib.request.Request(img_url, headers = headers), timeout = 5)
+        image_req = urllib.request.urlopen(urllib.request.Request(img_url, headers = headers), timeout = 4)
         if image_req.headers.get_content_maintype() != 'image':
             print('Content type %s not expected, image skipped: %s' % (image_req.headers.get_content_maintype(), img_url))
             return (1, None)

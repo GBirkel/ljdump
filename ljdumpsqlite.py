@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # ljdumpsqlite.py - SQLite support tools for livejournal archiver
-# Version 1.7.5
+# Version 1.7.6
 #
 # LICENSE
 #
@@ -398,7 +398,7 @@ def insert_or_update_event(cur, verbose, ev):
 
         "props_commentalter": ev['props'].get("commentalter", None),
         "props_current_moodid": ev['props'].get("current_moodid", None),
-        "props_current_music": ev['props'].get("current_music", None),
+        "props_current_music": str(ev['props'].get("current_music", None)),
         "props_import_source": ev['props'].get("import_source", None),
         "props_interface": ev['props'].get("interface", None),
         "props_opt_backdated": ev['props'].get("opt_backdated", None),

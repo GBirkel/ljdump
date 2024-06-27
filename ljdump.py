@@ -3,7 +3,7 @@
 #
 # ljdump.py - livejournal archiver
 # Greg Hewgill, Garrett Birkel, et al
-# Version 1.7.5
+# Version 1.7.6
 #
 # LICENSE
 #
@@ -23,7 +23,7 @@
 #    misrepresented as being the original software.
 # 3. This notice may not be removed or altered from any source distribution.
 #
-# Copyright (c) 2005-2010 Greg Hewgill and contributors
+# Copyright (c) 2005-2024 Greg Hewgill and contributors
 
 import argparse, codecs, os, pickle, pprint, re, shutil, sys, xml.dom.minidom
 import xmlrpc.client
@@ -164,7 +164,7 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
 
                     # Process the event
 
-                    # Wanna do a bulk replace of something in your entire journal? This is now.
+                    # Wanna do a bulk replace of something in your entire journal? This is how.
                     #ev['event'] = re.sub('http://(edu.|staff.|)mmcs.sfedu.ru/~ulysses',
                     #                     'https://a-pelenitsyn.github.io/Files',
                     #                     str(ev['event']))
@@ -341,13 +341,26 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
     }))
 
     for t in r['tags']:
+
+        ts_private = '0'
+        ts_protected = '0'
+        ts_public = '0'
+        ts_level = '0'
+
+        if 'security' in t:
+            s = t['security']
+            if 'private' in s: ts_private = s['private']
+            if 'protected' in s: ts_protected = s['protected']
+            if 'public' in s: ts_public = s['public']
+            if 'level' in s: ts_level = s['level']
+
         insert_or_update_tag(cur, verbose,
             {   'name': t['name'],
                 'display': t['display'],
-                'security_private': t['security']['private'],
-                'security_protected': t['security']['protected'],
-                'security_public': t['security']['public'],
-                'security_level': t['display'],
+                'security_private': ts_private,
+                'security_protected': ts_protected,
+                'security_public': ts_public,
+                'security_level': ts_level,
                 'uses': t['uses']})
 
     #

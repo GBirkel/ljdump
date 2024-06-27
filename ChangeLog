@@ -1,5 +1,11 @@
 ChangeLog - ljdump
 
+Version 1.7.6 - 2024-06-26
+
+- Attempt to fix music field parsing for some entries
+- Fix for crash on missing security properties for some entries
+- Image fetch timeout reduced from 5 seconds to 4 seconds
+
 Version 1.7.5 - 2024-05-20
 
 - Fixed time conversion error on Windows machines.
