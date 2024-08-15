@@ -1,5 +1,9 @@
 ChangeLog - ljdump
 
+Version 1.7.7 - 2024-08-14
+
+- Slightly better unicode handling for tags and music
+
 Version 1.7.6 - 2024-06-26
 
 - Attempt to fix music field parsing for some entries

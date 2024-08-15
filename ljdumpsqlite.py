@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # ljdumpsqlite.py - SQLite support tools for livejournal archiver
-# Version 1.7.6
+# Version 1.7.7
 #
 # LICENSE
 #
