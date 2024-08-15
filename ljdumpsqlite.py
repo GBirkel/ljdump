@@ -27,6 +27,7 @@
 from datetime import *
 import calendar
 import sqlite3
+import xmlrpc.client
 from sqlite3 import Error
 from xml.sax import saxutils
 from builtins import str
@@ -86,6 +87,20 @@ def object_to_xml_string(accumulator, name, e):
             accumulator += ("<%s>%s</%s>\n" % (k, saxutils.escape(s), k))
     accumulator += ("</%s>\n" % name)
     return accumulator
+
+
+def possible_unicode_or_none(u):
+    if u is None:
+        return None
+    if isinstance(u, xmlrpc.client.Binary):
+        s = u.data.decode('utf-8')
+    else:
+        try:
+            s = str(u)
+        except UnicodeDecodeError:
+            # fall back to Latin-1 for old entries that aren't UTF-8
+            s = u.decode('cp1252')
+    return s
 
 
 def connect_to_local_journal_db(db_file, verbose):
@@ -379,10 +394,12 @@ def insert_or_update_event(cur, verbose, ev):
     # Preserve all the properties as an XML chunk in case there are
     # some we're not aware of here.
     prop_dump = object_to_xml_string('<?xml version="1.0"?>', "props", ev['props'])
-    event_content = str(ev['event'])
+    event_content = possible_unicode_or_none(ev['event'])
     event_subject = None
     if 'subject' in ev:
-        event_subject = str(ev['subject'])
+        event_subject = possible_unicode_or_none(ev['subject'])
+    taglist = ev['props'].get("taglist", None)
+    taglist = possible_unicode_or_none(taglist)
 
     data = {
         "itemid": ev['itemid'],
@@ -398,13 +415,13 @@ def insert_or_update_event(cur, verbose, ev):
 
         "props_commentalter": ev['props'].get("commentalter", None),
         "props_current_moodid": ev['props'].get("current_moodid", None),
-        "props_current_music": str(ev['props'].get("current_music", None)),
+        "props_current_music": possible_unicode_or_none(ev['props'].get("current_music", None)),
         "props_import_source": ev['props'].get("import_source", None),
         "props_interface": ev['props'].get("interface", None),
         "props_opt_backdated": ev['props'].get("opt_backdated", None),
         "props_picture_keyword": ev['props'].get("picture_keyword", None),
         "props_picture_mapid": ev['props'].get("picture_mapid", None),
-        "props_taglist": ev['props'].get("taglist", None),
+        "props_taglist": taglist,
 
         "raw_props": prop_dump,
     }

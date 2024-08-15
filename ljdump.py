@@ -355,7 +355,7 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
             if 'level' in s: ts_level = s['level']
 
         insert_or_update_tag(cur, verbose,
-            {   'name': t['name'],
+            {   'name': possible_unicode_or_none(t['name']),
                 'display': t['display'],
                 'security_private': ts_private,
                 'security_protected': ts_protected,
