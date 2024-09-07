@@ -110,13 +110,13 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
     create_tables_if_missing(conn, verbose)
     cur = conn.cursor()
 
-    (lastmaxid, lastsync) = get_status_or_defaults(cur, 0, "")
+    sync_status = get_sync_status_or_defaults(cur, 0, "")
 
     #
     # Entries (events)
     #
 
-    origlastsync = lastsync
+    origlastsync = sync_status.lastsync
 
     # The following code doesn't work because the server rejects our repeated calls.
     # https://www.livejournal.com/doc/server/ljp.csp.xml-rpc.getevents.html
@@ -140,7 +140,7 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
 
     r = server.LJ.XMLRPC.syncitems(authed({
         'ver': 1,
-        'lastsync': lastsync, # this one is not helpful when you want update existing stuff
+        'lastsync': sync_status.lastsync, # this one is not helpful when you want update existing stuff
         'usejournal': journal_short_name,
     }))
 
@@ -187,19 +187,14 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
                 pprint.pprint(x)
                 errors += 1
 
-        lastsync = item['time']
-    
-    if stop_at_fifty:
-        set_status(cur, lastmaxid, lastsync)
-        finish_with_database(conn, cur)
-        os._exit(os.EX_OK)
-    
+        sync_status.lastsync = item['time']
+        
     #
     # Comments
     #
 
     if verbose:
-        print("Fetching journal comments for: %s" % journal_short_name)
+        print("Fetching journal comment metadata for \"%s\" starting at ID " % (journal_short_name, max_comment_id))
 
     try:
         f = open("%s/comment.meta" % journal_short_name)
@@ -208,13 +203,17 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
     except:
         metacache = {}
 
-    maxid = lastmaxid
+    max_comment_id = sync_status.lastmaxcommentid
+    new_max_comment_id = max_comment_id
     while True:
+        url = "/export_comments.bml?get=comment_meta&startid=%d%s" % (max_comment_id+1, authas)
+        if stop_at_fifty:
+            url = "/export_comments.bml?get=comment_meta&startid=%d&numitems=50%s" % (max_comment_id+1, authas)
         try:
             try:
                 r = urllib.request.urlopen(
                         urllib.request.Request(
-                            journal_server+"/export_comments.bml?get=comment_meta&startid=%d%s" % (maxid+1, authas),
+                            journal_server + url,
                             headers = {'Cookie': "ljsession="+ljsession}
                        )
                     )
@@ -235,24 +234,23 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
                 'posterid': c.getAttribute("posterid"),
                 'state': c.getAttribute("state"),
             }
-            if id > maxid:
-                maxid = id
+            if id > new_max_comment_id:
+                new_max_comment_id = id
         for u in meta.getElementsByTagName("usermap"):
             insert_or_update_user_in_map(cur, verbose, u.getAttribute("id"), u.getAttribute("user"))
-        if maxid >= int(meta.getElementsByTagName("maxid")[0].firstChild.nodeValue):
+        if new_max_comment_id >= int(meta.getElementsByTagName("maxid")[0].firstChild.nodeValue):
             break
 
     usermap = get_users_map(cur, verbose)
 
-    newmaxid = maxid
-    maxid = lastmaxid
+    maxid = sync_status.lastmaxid
 
     # Make a reduced array of comment ids, containing only the ids
     # between the id of the comment we fetched in the last session,
     # and the highest comment id in the set of new comments.
     new_comment_ids = []
     for commentid in metacache.keys():
-        if commentid > maxid and commentid <= newmaxid:
+        if commentid > max_comment_id and commentid <= new_max_comment_id:
             new_comment_ids.append(commentid)
     # Now put them in order from lowest to highest, because we're going to
     # fetch comments in pages and skip the ones already fetched, and the
@@ -270,11 +268,11 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
             continue
         try:
             if verbose:
-                print('Fetching comment bodies starting at %s' % (commentid))
+                print('Fetching comment bodies starting at ID %s' % (commentid))
             try:
                 r = urllib.request.urlopen(
                     urllib.request.Request(
-                        journal_server+"/export_comments.bml?get=comment_body&startid=%d%s" % (commentid, authas),
+                        journal_server+"/export_comments.bml?get=comment_body&startid=%d&numitems=50%s" % (commentid, authas),
                         headers = {'Cookie': "ljsession="+ljsession}
                     )
                 )
@@ -314,8 +312,8 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
 
             comments_already_fetched[id] = True
 
-            if id > maxid:
-                maxid = id
+            if id > new_max_comment_id:
+                new_max_comment_id = id
 
     #
     # Mood information
@@ -412,9 +410,10 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
                     'filename': (picfn+ext),
                     'url': userpics[p]})
 
-    lastmaxid = maxid
+    sync_status.lastmaxid = maxid
+    sync_status.lastmaxcommentid = new_max_comment_id
 
-    set_status(cur, lastmaxid, lastsync)
+    set_sync_status(cur, sync_status)
 
     if verbose or (newentries > 0 or newcomments > 0):
         if origlastsync:
