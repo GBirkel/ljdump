@@ -96,8 +96,8 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
         """Transform API call params to include authorization."""
         return dict(auth_method='clear', username=username, password=password, **params)
 
-    newentries = 0
-    newcomments = 0
+    new_entry_count = 0
+    new_comment_count = 0
     errors = 0
 
     conn = None
@@ -110,13 +110,13 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
     create_tables_if_missing(conn, verbose)
     cur = conn.cursor()
 
-    sync_status = get_sync_status_or_defaults(cur, 0, "")
+    sync_status = get_sync_status_or_defaults(cur, "", 0)
 
     #
     # Entries (events)
     #
 
-    origlastsync = sync_status.lastsync
+    original_last_sync = sync_status.last_sync
 
     # The following code doesn't work because the server rejects our repeated calls.
     # https://www.livejournal.com/doc/server/ljp.csp.xml-rpc.getevents.html
@@ -140,7 +140,7 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
 
     r = server.LJ.XMLRPC.syncitems(authed({
         'ver': 1,
-        'lastsync': sync_status.lastsync, # this one is not helpful when you want update existing stuff
+        'lastsync': sync_status.last_sync, # this one is not helpful when you want update existing stuff
         'usejournal': journal_short_name,
     }))
 
@@ -160,7 +160,7 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
                 }))
                 if e['events']:
                     ev = e['events'][0]
-                    newentries += 1
+                    new_entry_count += 1
 
                     # Process the event
 
@@ -176,7 +176,7 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
 
                     insert_or_update_event(cur, verbose, ev)
 
-                    if stop_at_fifty and newentries > 49:
+                    if stop_at_fifty and new_entry_count > 49:
                         break
 
                 else:
@@ -187,7 +187,8 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
                 pprint.pprint(x)
                 errors += 1
 
-        sync_status.lastsync = item['time']
+        # Assuming these emerge from the server in order by date from least to most recent...
+        sync_status.last_sync = item['time']
         
     #
     # Comments
@@ -203,7 +204,7 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
     except:
         metacache = {}
 
-    max_comment_id = sync_status.lastmaxcommentid
+    max_comment_id = sync_status.last_max_comment_id
     new_max_comment_id = max_comment_id
     while True:
         url = "/export_comments.bml?get=comment_meta&startid=%d%s" % (max_comment_id+1, authas)
@@ -242,8 +243,6 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
             break
 
     usermap = get_users_map(cur, verbose)
-
-    maxid = sync_status.lastmaxid
 
     # Make a reduced array of comment ids, containing only the ids
     # between the id of the comment we fetched in the last session,
@@ -308,7 +307,7 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
 
             was_new = insert_or_update_comment(cur, verbose, db_comment)
             if was_new:
-                newcomments += 1
+                new_comment_count += 1
 
             comments_already_fetched[id] = True
 
@@ -410,16 +409,15 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
                     'filename': (picfn+ext),
                     'url': userpics[p]})
 
-    sync_status.lastmaxid = maxid
-    sync_status.lastmaxcommentid = new_max_comment_id
+    sync_status.last_max_comment_id = new_max_comment_id
 
     set_sync_status(cur, sync_status)
 
-    if verbose or (newentries > 0 or newcomments > 0):
-        if origlastsync:
-            print("%d new entries, %d new comments (since %s)" % (newentries, newcomments, origlastsync))
+    if verbose or (new_entry_count > 0 or new_comment_count > 0):
+        if original_last_sync:
+            print("%d new entries, %d new comments (since %s)" % (new_entry_count, new_comment_count, original_last_sync))
         else:
-            print("%d new entries, %d new comments" % (newentries, newcomments))
+            print("%d new entries, %d new comments" % (new_entry_count, new_comment_count))
     if errors > 0:
         print("%d errors" % errors)
 

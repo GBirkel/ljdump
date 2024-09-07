@@ -132,7 +132,6 @@ def create_tables_if_missing(conn, verbose):
     conn.execute("""
         CREATE TABLE IF NOT EXISTS status (
             lastsync TEXT,
-            lastmaxid INTEGER,
             lastmaxcommentid INTEGER
         )""")
 
@@ -253,22 +252,20 @@ def create_tables_if_missing(conn, verbose):
         )""")
 
 
-def get_sync_status_or_defaults(cur, lastmaxid, lastmaxcommentid, lastsync):
+def get_sync_status_or_defaults(cur, last_sync, last_max_comment_id):
     """ get values from the current status record, or create a new one if missing
     :param cur: database cursor
-    :param lastmaxid: default lastmaxid value
-    :param lastmaxcommentid: default lastmaxcommentid value
-    :param lastsync: default lastsync value
+    :param last_sync: default lastsync value
+    :param last_max_comment_id: default lastmaxcommentid value
     """
-    cur.execute("SELECT lastmaxid, lastmaxcommentid, lastsync FROM status")
+    cur.execute("SELECT lastsync, lastmaxcommentid FROM status")
     row = cur.fetchone()
     if not row:
-        cur.execute("INSERT INTO status (lastmaxid, lastmaxcommentid, lastsync) VALUES (?, ?, ?)", (lastmaxid, lastmaxcommentid, lastsync))
+        cur.execute("INSERT INTO status (lastsync, lastmaxcommentid) VALUES (?, ?)", (last_sync, last_max_comment_id))
     else:
-        lastmaxid = row[0]
-        lastmaxcommentid = row[1]
-        lastsync = row[2]
-    status = {"lastmaxid": lastmaxid, "lastmaxcommentid": lastmaxcommentid, "lastsync": lastsync }
+        last_sync = row[0]
+        last_max_comment_id = row[1]
+    status = {"last_sync": last_sync , "last_max_comment_id": last_max_comment_id}
     return status
 
 
@@ -931,10 +928,9 @@ def get_all_successfully_cached_image_records(cur, verbose):
 def set_sync_status(cur, status):
     """ set values in the current status record
     :param cur: database cursor
-    :param lastmaxid: default lastmaxid value
-    :param lastsync: default lastsync value
+    :param status: sync status record
     """
-    cur.execute("UPDATE status SET lastmaxid = ?, lastmaxcommentid = ?, lastsync = ?", (status.lastmaxid, status.lastmaxcommentid, status.lastsync))
+    cur.execute("UPDATE status SET lastsync = ?, lastmaxcommentid = ?", (status.last_sync, status.last_max_comment_id))
 
 
 def finish_with_database(conn, cur):
