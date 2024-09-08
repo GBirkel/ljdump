@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # ljdumpsqlite.py - SQLite support tools for livejournal archiver
-# Version 1.7.7
+# Version 1.7.8
 #
 # LICENSE
 #
@@ -265,7 +265,7 @@ def get_sync_status_or_defaults(cur, last_sync, last_max_comment_id):
     else:
         last_sync = row[0]
         last_max_comment_id = row[1]
-    status = {"last_sync": last_sync , "last_max_comment_id": last_max_comment_id}
+    status = {"last_sync": last_sync, "last_max_comment_id": last_max_comment_id}
     return status
 
 
@@ -566,7 +566,7 @@ def insert_or_update_comment(cur, verbose, comment):
     row = cur.fetchone()
     if not row:
         if verbose:
-            print('Adding new comment by %s for entry %s with id %s' % (comment['user'], comment['entryid'], comment['id']))
+            print('Adding new comment by %s for entry %s with ID %s' % (comment['user'], comment['entryid'], comment['id']))
         cur.execute("""
             INSERT INTO comments (
                 id,
@@ -592,7 +592,7 @@ def insert_or_update_comment(cur, verbose, comment):
         return True
     else:
         if verbose:
-            print('Updating existing comment by %s for entry %s with id %s' % (comment['user'], comment['entryid'], comment['id']))
+            print('Updating existing comment by %s for entry %s with ID %s' % (comment['user'], comment['entryid'], comment['id']))
         cur.execute("""
             UPDATE comments SET
                 entryid = :entryid,
@@ -930,7 +930,7 @@ def set_sync_status(cur, status):
     :param cur: database cursor
     :param status: sync status record
     """
-    cur.execute("UPDATE status SET lastsync = ?, lastmaxcommentid = ?", (status.last_sync, status.last_max_comment_id))
+    cur.execute("UPDATE status SET lastsync = ?, lastmaxcommentid = ?", (status['last_sync'], status['last_max_comment_id']))
 
 
 def finish_with_database(conn, cur):

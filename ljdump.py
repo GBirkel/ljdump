@@ -3,7 +3,7 @@
 #
 # ljdump.py - livejournal archiver
 # Greg Hewgill, Garrett Birkel, et al
-# Version 1.7.7
+# Version 1.7.8
 #
 # LICENSE
 #
@@ -70,7 +70,7 @@ def gettext(e):
     return e[0].firstChild.nodeValue
 
 
-def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, verbose=True, stop_at_fifty=False, make_pages=False, cache_images=False, retry_images=True):
+def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, verbose=True, max_to_fetch=100, make_pages=False, cache_images=False, retry_images=True):
 
     m = re.search("(.*)/interface/xmlrpc", journal_server)
     if m:
@@ -116,7 +116,7 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
     # Entries (events)
     #
 
-    original_last_sync = sync_status.last_sync
+    original_last_sync = sync_status['last_sync']
 
     # The following code doesn't work because the server rejects our repeated calls.
     # https://www.livejournal.com/doc/server/ljp.csp.xml-rpc.getevents.html
@@ -138,14 +138,18 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
     #pprint.pprint(r)
     #os._exit(os.EX_OK)
 
+    # There is apparently no support for fetching pages here, so repeated calls
+    # to this will fetch overlapping lists of events (which can be quite long)
+    # as we catch up to the present.  If getevents syncitems (above) worked properly
+    # we could avoid this.
     r = server.LJ.XMLRPC.syncitems(authed({
         'ver': 1,
-        'lastsync': sync_status.last_sync, # this one is not helpful when you want update existing stuff
+        'lastsync': sync_status['last_sync'],
         'usejournal': journal_short_name,
     }))
 
     if verbose:
-        print("Sync items to handle: %s" % (len(r['syncitems'])))
+        print("Sync items to process: %s out of %s returned." % (min(max_to_fetch, len(r['syncitems'])), len(r['syncitems'])))
 
     for item in r['syncitems']:
         if item['item'][0] == 'L':
@@ -176,7 +180,7 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
 
                     insert_or_update_event(cur, verbose, ev)
 
-                    if stop_at_fifty and new_entry_count > 49:
+                    if new_entry_count > max_to_fetch:
                         break
 
                 else:
@@ -188,14 +192,16 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
                 errors += 1
 
         # Assuming these emerge from the server in order by date from least to most recent...
-        sync_status.last_sync = item['time']
+        sync_status['last_sync'] = item['time']
         
     #
     # Comments
     #
 
+    max_comment_id = sync_status['last_max_comment_id']
+
     if verbose:
-        print("Fetching journal comment metadata for \"%s\" starting at ID " % (journal_short_name, max_comment_id))
+        print("Fetching journal comment metadata for \"%s\" starting at ID %d" % (journal_short_name, max_comment_id))
 
     try:
         f = open("%s/comment.meta" % journal_short_name)
@@ -204,43 +210,44 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
     except:
         metacache = {}
 
-    max_comment_id = sync_status.last_max_comment_id
+    meta_comments_fetched_count = 0
+
     new_max_comment_id = max_comment_id
-    while True:
-        url = "/export_comments.bml?get=comment_meta&startid=%d%s" % (max_comment_id+1, authas)
-        if stop_at_fifty:
-            url = "/export_comments.bml?get=comment_meta&startid=%d&numitems=50%s" % (max_comment_id+1, authas)
+    url = "/export_comments.bml?get=comment_meta&startid=%d&numitems=%d%s" % (new_max_comment_id+1, max_to_fetch, authas)
+    try:
         try:
-            try:
-                r = urllib.request.urlopen(
-                        urllib.request.Request(
-                            journal_server + url,
-                            headers = {'Cookie': "ljsession="+ljsession}
-                       )
+            r = urllib.request.urlopen(
+                    urllib.request.Request(
+                        journal_server + url,
+                        headers = {'Cookie': "ljsession="+ljsession}
                     )
-                meta = xml.dom.minidom.parse(r)
-            except Exception as x:
-                print("*** Error fetching comment meta, possibly not community maintainer?")
-                print("***", x)
-                break
-        finally:
-            try:
-                r.close()
-            except AttributeError: # r is sometimes a dict for unknown reasons
-                pass
+                )
+            meta = xml.dom.minidom.parse(r)
+        except Exception as x:
+            print("*** Error fetching comment meta, possibly not community maintainer?")
+            print("***", x)
+    finally:
+        try:
+            r.close()
+        except AttributeError: # r is sometimes a dict for unknown reasons
+            pass
 
         for c in meta.getElementsByTagName("comment"):
             id = int(c.getAttribute("id"))
+            meta_comments_fetched_count += 1
             metacache[id] = {
                 'posterid': c.getAttribute("posterid"),
                 'state': c.getAttribute("state"),
             }
             if id > new_max_comment_id:
                 new_max_comment_id = id
+
+        maxid = int(meta.getElementsByTagName("maxid")[0].firstChild.nodeValue)
+        if verbose:
+            print("Fetched %d metadata entries. Our max_comment_id is now %s. Highest comment_id on server is %d." % (meta_comments_fetched_count, new_max_comment_id, maxid))
+
         for u in meta.getElementsByTagName("usermap"):
             insert_or_update_user_in_map(cur, verbose, u.getAttribute("id"), u.getAttribute("user"))
-        if new_max_comment_id >= int(meta.getElementsByTagName("maxid")[0].firstChild.nodeValue):
-            break
 
     usermap = get_users_map(cur, verbose)
 
@@ -271,7 +278,7 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
             try:
                 r = urllib.request.urlopen(
                     urllib.request.Request(
-                        journal_server+"/export_comments.bml?get=comment_body&startid=%d&numitems=50%s" % (commentid, authas),
+                        journal_server+"/export_comments.bml?get=comment_body&startid=%d&numitems=%d%s" % (commentid, meta_comments_fetched_count, authas),
                         headers = {'Cookie': "ljsession="+ljsession}
                     )
                 )
@@ -285,6 +292,9 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
         for c in meta.getElementsByTagName("comment"):
             id = int(c.getAttribute("id"))
             if id in comments_already_fetched:
+                continue
+            # We fetch in chunks, so may have actually fetched bodies past the metadata we've collected.
+            if id > new_max_comment_id:
                 continue
             jitemid = c.getAttribute("jitemid")
 
@@ -409,7 +419,7 @@ def ljdump(journal_server, username, password, journal_short_name, ljuniq=None, 
                     'filename': (picfn+ext),
                     'url': userpics[p]})
 
-    sync_status.last_max_comment_id = new_max_comment_id
+    sync_status['last_max_comment_id'] = new_max_comment_id
 
     set_sync_status(cur, sync_status)
 
@@ -439,8 +449,8 @@ if __name__ == "__main__":
                       help="reduce log output")
     args.add_argument("--no_html", "-n", action='store_false', dest='make_pages',
                       help="don't process the journal data into HTML files.")
-    args.add_argument("--fifty", "-f", action='store_true', dest='fifty',
-                      help="stop after synchronizing 50 entries, and do not fetch anything else")
+    args.add_argument('--max', type=int, default=400, dest='max_to_fetch',
+                      help='Maximum number of entries and comments to fetch at a time.  Default is 400.')
     args.add_argument("--cache_images", "-i", action='store_true', dest='cache_images',
                       help="build a cache of images referenced in entries")
     args.add_argument("--dont_retry_images", "-d", action='store_false', dest='retry_images',
@@ -502,7 +512,7 @@ if __name__ == "__main__":
             ljuniq=ljuniq,
             journal_short_name=journal,
             verbose=args.verbose,
-            stop_at_fifty=args.fifty,
+            max_to_fetch=args.max_to_fetch,
             make_pages=args.make_pages,
             cache_images=args.cache_images,
             retry_images=args.retry_images

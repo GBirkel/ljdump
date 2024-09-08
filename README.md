@@ -36,7 +36,7 @@ So, it's not possible to get the local HTML to look exactly like your online jou
 
 ## How to use ##
 
-__To get the full archive of a very large journal, you may need to run the script a few times in a row, until it says there are no new changes.__
+__To get the full archive of a very large journal, you may need to run the script multiple times, until it says there are no new changes.__  Take note of the `--max` command line argument (described below) which can be used to speed this up.
 
 ### Windows ###
 
@@ -100,9 +100,9 @@ Makes the script print a lot less status information to the console as it runs.
 
 By defualt, this script constructs HTML pages after saving everything to the SQLite database.  This flag skips the HTML.
 
-`--fifty`
+`--max n`
 
-Only fetch 50 of the entries that are new since the last sync, then stop.  Useful for testing the script output before you commit to downloading your whole journal.
+Fetch a maximum of n entries and comments that are new since the last sync, then stop.  The default is 400, but can be set lower if you want to run a test, or higher if you want to download your whole journal at once and are confident the server won't complain.  I recommend using the default at least once, then using a value of 1500 afterward until you're caught up.
 
 `--cache_images`
 
