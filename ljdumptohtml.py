@@ -49,7 +49,10 @@ def write_html(filename, html_as_string):
     f.write(html_as_string)
 
 
-def create_template_page(journal_short_name, title_text):
+# journal_short_name: Name of journal
+# title_text: Text to put in HTML title element
+# in_subfolder: Whether this page will be placed in a subfolder relative to the support files, e.g. stylesheet.css
+def create_template_page(journal_short_name, title_text, in_subfolder=True):
     page = ET.Element('html',
         attrib={'class': 'csstransforms csstransitions flexbox fontface generatedcontent no-touchevents no-touch'})
     head = ET.SubElement(page, 'head')
@@ -58,8 +61,12 @@ def create_template_page(journal_short_name, title_text):
     ET.SubElement(head, 'meta',
         attrib={'charset': 'utf-8'})
 
+    path_prefix = ""
+    if in_subfolder:
+        path_prefix = "../"
+
     ET.SubElement(head, 'link',
-        attrib={'rel': 'stylesheet', 'href': '../stylesheet.css'})
+        attrib={'rel': 'stylesheet', 'href': path_prefix + 'stylesheet.css'})
     title = ET.SubElement(head, 'title')
     title.text = title_text
     body = ET.SubElement(page, 'body',
@@ -389,8 +396,9 @@ def resolve_cached_image_references(content, image_urls_to_filenames):
     urls_found = re.findall(r'img[^<>]*\ssrc\s?=\s?[\'\"](https?:/+[^\s\"\'()<>]+)[\'\"]', content, flags=re.IGNORECASE)
     # Build a regular expression to detect images hosted on Dreamwidth
     dw_hosted_pattern = re.compile('^https://(\w+).dreamwidth.org/file/\d+x\d+/(.+)')
-    for image_url in urls_found:
+    uncached_urls = []
 
+    for image_url in urls_found:
         url_in_cache = image_url
         if dw_hosted_pattern.match(image_url):
             dw_hosted = dw_hosted_pattern.search(image_url)
@@ -399,11 +407,13 @@ def resolve_cached_image_references(content, image_urls_to_filenames):
         if url_in_cache in image_urls_to_filenames:
             filename = image_urls_to_filenames[url_in_cache]
             content = content.replace(image_url, ("../images/%s" % filename))
-    return content
+        else:
+            uncached_urls.append(url_in_cache)
+    return (content, uncached_urls)
 
 
 def create_single_entry_page(journal_short_name, entry, comments, image_urls_to_filenames, icons_by_keyword, moods_by_id, previous_entry=None, next_entry=None):
-    page, content = create_template_page(journal_short_name, "%s entry %s" % (journal_short_name, entry['itemid']))
+    page, content = create_template_page(journal_short_name, "%s entry %s" % (journal_short_name, entry['itemid']), True)
 
     # Top navigation area (e.g. "previous" and "next" links)
     topnav_div = ET.SubElement(content, 'div', attrib={'class': 'navigation topnav' })
@@ -477,7 +487,7 @@ def create_single_entry_page(journal_short_name, entry, comments, image_urls_to_
 
     text_strings = []
     entry_body = entry['event']
-    entry_body = resolve_cached_image_references(entry_body, image_urls_to_filenames)
+    (entry_body, uncached) = resolve_cached_image_references(entry_body, image_urls_to_filenames)
     entry_body = re.sub("(\r\n|\r|\n)", "<br />", entry_body)
     text_strings.append(html_split_on_entry_body[0])
     text_strings.append(u'<div class="entry-content" id="entry-content-insertion-point">')
@@ -501,7 +511,7 @@ def create_single_entry_page(journal_short_name, entry, comments, image_urls_to_
 
 
 def create_history_page(journal_short_name, entries, comments_grouped_by_entry, image_urls_to_filenames, icons_by_keyword, moods_by_id, page_number, previous_page_entry_count=0, next_page_entry_count=0):
-    page, content = create_template_page(journal_short_name, "%s entries page %s" % (journal_short_name, page_number))
+    page, content = create_template_page(journal_short_name, "%s entries page %s" % (journal_short_name, page_number), True)
 
     # Top navigation area (e.g. "previous" and "next" links)
     topnav_div = ET.SubElement(content, 'div', attrib={'class': 'navigation topnav' })
@@ -565,7 +575,7 @@ def create_history_page(journal_short_name, entries, comments_grouped_by_entry, 
     for i in range(0, len(entries)):
         e = entries[i]
         entry_body = e['event']
-        entry_body = resolve_cached_image_references(entry_body, image_urls_to_filenames)
+        (entry_body, uncached) = resolve_cached_image_references(entry_body, image_urls_to_filenames)
         entry_body = re.sub("(\r\n|\r|\n)", "<br />", entry_body)
         text_strings.append(html_split_on_insertion_points[i])
         text_strings.append(u'<div class="entry-content" id="entry-content-insertion-point">')
@@ -578,13 +588,23 @@ def create_history_page(journal_short_name, entries, comments_grouped_by_entry, 
 
 
 def create_table_of_contents_page(journal_short_name, entry_count, entries_table_of_contents, history_page_table_of_contents, tags_encountered, entries_by_tag):
-    page, content = create_template_page(journal_short_name, "%s archive" % journal_short_name)
+    page, content = create_template_page(journal_short_name, "%s archive" % journal_short_name, False)
 
     toc_banner = ET.SubElement(content, 'h1')
     toc_banner.text = 'Number of entries: %s' % entry_count
 
-    history_toc_banner = ET.SubElement(content, 'h2')
-    history_toc_banner.text = 'History Pages'
+    sections = [("Entries As History Pages", "#history"),
+                ("Entries By Tag", "#bytag"),
+                ("All Entries By Month", "#bymonth"),
+                ("Uncached Image Report", "uncached_images_report.html")]
+    for section in sections:
+        (section_name, section_url) = section
+        toc_section_p = ET.SubElement(content, 'p')
+        toc_section_a = ET.SubElement(toc_section_p, 'a', attrib={ 'href': section_url })
+        toc_section_a.text = section_name
+
+    tag_toc_banner = ET.SubElement(content, 'h2', attrib={'id': 'history' })
+    tag_toc_banner.text = 'Entries As History Pages'
 
     history_ul = ET.SubElement(content, 'ul')
 
@@ -595,7 +615,7 @@ def create_table_of_contents_page(journal_short_name, entry_count, entries_table
         d_to = html.escape(toc['to'].strftime("%Y %b %e"))
         history_a.text = "%s ... %s" % (d_from, d_to)
 
-    tag_toc_banner = ET.SubElement(content, 'h2')
+    tag_toc_banner = ET.SubElement(content, 'h2', attrib={'id': 'bytag' })
     tag_toc_banner.text = 'Entries By Tag'
 
     for tag in tags_encountered:
@@ -613,7 +633,7 @@ def create_table_of_contents_page(journal_short_name, entry_count, entries_table
             tag_a.text = "%s:" % e_date
             tag_a.tail = " %s" % toc['subject']
 
-    entries_toc_banner = ET.SubElement(content, 'h2')
+    entries_toc_banner = ET.SubElement(content, 'h2', attrib={'id': 'bymonth' })
     entries_toc_banner.text = 'All Entries By Month'
 
     for toc_group in entries_table_of_contents:
@@ -629,6 +649,29 @@ def create_table_of_contents_page(journal_short_name, entry_count, entries_table
             e_date = html.escape(f'{d:%b}. {d.day}, {d:%Y} {dh}:{d:%M} {d:%p}')
             month_a.text = "%s:" % e_date
             month_a.tail = " %s" % toc['subject']
+
+    html_as_string = ET.tostring(page, encoding="utf-8", method="html").decode('utf-8')
+    return html_as_string
+
+
+def create_uncached_images_report_page(journal_short_name, entries):
+    page, content = create_template_page(journal_short_name, "%s uncached images" % journal_short_name, False)
+
+    toc_banner = ET.SubElement(content, 'h1')
+    toc_banner.text = 'Number of entries with uncached (possibly broken) images: %s' % len(entries)
+
+    history_ul = ET.SubElement(content, 'ul')
+
+    ul = ET.SubElement(content, 'ul')
+    for toc_urls in entries:
+        (toc, urls) = toc_urls
+        li = ET.SubElement(ul, 'li')
+        a = ET.SubElement(li, 'a', attrib={ 'href': toc['filename'] })
+        d = toc['date']
+        dh = int(f'{d:%I}')
+        e_date = html.escape(f'{d:%b}. {d.day}, {d:%Y} {dh}:{d:%M} {d:%p}')
+        a.text = "%s:" % e_date
+        a.tail = " %s (%s)" % (toc['subject'], len(urls))
 
     html_as_string = ET.tostring(page, encoding="utf-8", method="html").decode('utf-8')
     return html_as_string
@@ -795,6 +838,8 @@ def ljdumptohtml(username, journal_short_name, ljuniq=None, verbose=True, cache_
     # Entry pages, one per entry.
     #
 
+    entries_with_uncached_images = []
+
     print("Rendering %s entry pages..." % (len(entries_by_date)))
 
     try:
@@ -847,6 +892,12 @@ def ljdumptohtml(username, journal_short_name, ljuniq=None, verbose=True, cache_
                     next_entry=next_entry
                 )
         write_html("%s/entries/entry-%s.html" % (journal_short_name, entry['itemid']), page)
+
+        entry_body = entry['event']
+        (entry_body, uncached) = resolve_cached_image_references(entry_body, image_urls_to_filenames)
+        if len(uncached) > 0:
+            entries_with_uncached_images.append((toc, uncached))
+
 
     entries_table_of_contents.append(current_month_group)
 
@@ -927,6 +978,20 @@ def ljdumptohtml(username, journal_short_name, ljuniq=None, verbose=True, cache_
                 entries_by_tag[tag].append(toc)
 
     tags_encountered = sorted(tags_encountered)
+
+    print("Rendering uncached image report page (%d entries)..." % (len(entries_with_uncached_images)))
+
+    #
+    # Uncached images report page
+    #
+
+    page = create_uncached_images_report_page(
+            journal_short_name=journal_short_name,
+            entries=entries_with_uncached_images,
+        )
+    write_html("%s/uncached_images_report.html" % journal_short_name, page)
+
+    print("Rendering table of contents page...")
 
     #
     # Table of contents page
