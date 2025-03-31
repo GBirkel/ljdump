@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <ljdump>
+    <!-- for Dreamwidth use https://dreamwidth.org -->
     <server>https://livejournal.com</server>
     <username>myaccount</username>
     <password>mypassword</password>
